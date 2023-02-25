@@ -1,5 +1,5 @@
 ---
-"@b-jones-rfd/npm-rest-connect": patch
+'@b-jones-rfd/sp-rest-connect': patch
 ---
 
 Update package name
