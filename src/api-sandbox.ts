@@ -11,9 +11,9 @@ const connection = createSiteConnection({
 })
 
 async function getMyList(listName: string) {
-  const token = await connection.getAuthToken()
-  const contents = await connection.getListContents(token, listName)
-  return contents
+  const contents = await connection.getListContents(listName)
+  if (contents.success) return contents.data
+  else throw new Error(contents.error)
 }
 
 const listContents = getMyList('myList')

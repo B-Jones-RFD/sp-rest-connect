@@ -2,7 +2,7 @@
 
 # sp-rest-connect
 
-Use SharePoint Rest Services to interact with lists and document libraries. I got tired of rewriting these for work projects.
+Use SharePoint Rest Services to interact with lists and document libraries. I got tired of rewriting these for work projects. Still building and not ready for use.
 
 ## Prerequisites
 
@@ -76,23 +76,42 @@ const connection = createConnection(options: Options);
 | ------ | ------------------- |
 | string | SharePoint username |
 
+`password`
+
+| Type   | Description         |
+| ------ | ------------------- |
+| string | SharePoint password |
+
+`siteUrl`
+
+| Type   | Description                  |
+| ------ | ---------------------------- |
+| string | SharePoint domain/site route |
+
+`protocol`
+
+| Type   | Default value | Options          | Description   |
+| ------ | ------------- | ---------------- | ------------- |
+| string | 'https'       | 'http' or 'http' | Site protocol |
+
 `domain`
 
 | Type   | Default value | Description |
 | ------ | ------------- | ----------- |
 | string | ''            | NTLM domain |
 
+`hostname`
+
+| Type   | Default value | Description |
+| ------ | ------------- | ----------- |
+| string | os.hostname() | OS Hostname |
+
 ### getListContents
 
 ```ts
-const contents = connection.getListContents(serverRelativeUrl: string, listName: string)
+const response = connection.getListContents(listName: string)
+const result = response.sucess ? response.data : response.error
 ```
-
-`serverRelativeUrl`
-
-| Type   | Description                         |
-| ------ | ----------------------------------- |
-| string | SharePoint site server relative url |
 
 `listName`
 
@@ -102,7 +121,7 @@ const contents = connection.getListContents(serverRelativeUrl: string, listName:
 
 ## Contributing
 
-This is a pet project to save me time at work. Use at your own risk.
+This is a pet project to save me time at work. It is still under development and not ready for use.
 
 ## Versioning
 
