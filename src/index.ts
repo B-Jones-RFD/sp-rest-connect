@@ -9,51 +9,21 @@ export type ConnectionOptions = {
   hostname?: string
 }
 
-export const createSiteConnection = (options: ConnectionOptions) => {
-  const { username, password, siteUrl, protocol, domain, hostname } = options
-  return {
-    addAttachmentToListItem: methods.addAttachmentToListItem(
-      siteUrl,
-      protocol,
-      domain,
-      hostname
-    ),
-    addDocumentToLibrary: methods.addDocumentToLibrary(
-      siteUrl,
-      protocol,
-      domain,
-      hostname
-    ),
-    addListItem: methods.addListItem(siteUrl, protocol, domain, hostname),
-    getAuthToken: methods.getAuthToken(
-      username,
-      password,
-      siteUrl,
-      protocol,
-      domain,
-      hostname
-    ),
-    getDocumentFromLibrary: methods.getDocumentFromLibrary(
-      siteUrl,
-      protocol,
-      domain,
-      hostname
-    ),
-    getFolderContents: methods.getFolderContents(
-      siteUrl,
-      protocol,
-      domain,
-      hostname
-    ),
-    getListContents: methods.getListContents(
-      siteUrl,
-      protocol,
-      domain,
-      hostname
-    ),
-    getListItem: methods.getListItem(siteUrl, protocol, domain, hostname),
-    updateListItem: methods.updateListItem(siteUrl, protocol, domain, hostname),
-  }
-}
+export type Result<T> =
+  | { success: true; data: T }
+  | { success: false; error: string }
+
+export const createSiteConnection = (options: ConnectionOptions) => ({
+  addAttachmentToListItem: methods.addAttachmentToListItem(options),
+  addDocumentToLibrary: methods.addDocumentToLibrary(options),
+  addListItem: methods.addListItem(options),
+  deleteListItem: methods.deleteListItem(options),
+  getAuthToken: methods.getAuthToken(options),
+  getDocumentFromLibrary: methods.getDocumentFromLibrary(options),
+  getFolderContents: methods.getFolderContents(options),
+  getListContents: methods.getListContents(options),
+  getListItem: methods.getListItem(options),
+  updateListItem: methods.updateListItem(options),
+})
 
 export default createSiteConnection

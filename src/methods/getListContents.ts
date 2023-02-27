@@ -1,22 +1,47 @@
+import type { ConnectionOptions, Result } from '..'
 import os from 'os'
+import { get } from '../ntlm'
+import { safeParseResults } from '../utils/parse'
 
 const getListContents =
-  (
-    siteUrl: string,
-    protocol: string = 'https',
-    domain: string = '',
-    hostname: string = os.hostname()
-  ) =>
-  async (accessToken: string, listName: string) => {
-    const route = `${
-      protocol ?? 'https'
-    }//${siteUrl}}/_api/web/lists/GetByTitle('${listName}')/items`
+  ({
+    username,
+    password,
+    siteUrl,
+    protocol = 'https',
+    domain = '',
+    hostname = os.hostname(),
+  }: ConnectionOptions) =>
+  async (
+    listName: string,
+    params?: URLSearchParams
+  ): Promise<Result<unknown[]>> => {
+    let url = `${protocol}//${siteUrl}}/_api/web/lists/GetByTitle('${listName}')/items`
 
-    const headers = {
-      Authorization: 'Bearer ' + accessToken,
-      Accept: 'application/json;odata=verbose',
+    if (params) {
+      url + '?' + params.toString()
     }
-    return [] as unknown[]
+    const config = {
+      url,
+      username,
+      password,
+      workstation: hostname,
+      domain,
+      headers: {
+        Accept: 'application/json; odata=verbose',
+      },
+    }
+
+    try {
+      const res = get(config)
+      const results = safeParseResults(res)
+      return results
+    } catch (error) {
+      return {
+        success: false,
+        error: `Error in getListContents: ${error}`,
+      }
+    }
   }
 
 export default getListContents

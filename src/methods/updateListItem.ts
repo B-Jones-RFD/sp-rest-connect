@@ -1,32 +1,53 @@
+import type { ConnectionOptions, Result } from '..'
 import os from 'os'
+import { post } from '../ntlm'
 
 const updateListItem =
-  (
-    siteUrl: string,
-    protocol: string = 'https',
-    domain: string = '',
-    hostname: string = os.hostname()
-  ) =>
+  ({
+    siteUrl,
+    username,
+    password,
+    protocol = 'https',
+    domain = '',
+    hostname = os.hostname(),
+  }: ConnectionOptions) =>
   async (
     accessToken: string,
     listName: string,
     spId: number,
     patch: string
-  ) => {
-    const route = `${
-      protocol ?? 'https'
-    }//${siteUrl}/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
+  ): Promise<Result<string>> => {
+    const url = `${protocol}//${siteUrl}/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
 
-    const headers = {
-      Authorization: 'Bearer ' + accessToken,
-      Accept: 'application/json;odata=verbose',
-      'Content-Type': 'application/json',
-      'Content-Length': patch.length,
-      'If-Match': '*',
-      'X-HTTP-Method': 'MERGE',
-      'X-RequestDigest': accessToken,
+    try {
+      const config = {
+        url,
+        username,
+        password,
+        workstation: hostname,
+        domain,
+        headers: {
+          Accept: 'application/json;odata=verbose',
+          'Content-Type': 'application/json;odata=verbose',
+          'Content-Length': patch.length,
+          'X-RequestDigest': accessToken,
+          'If-Match': '*',
+          'X-HTTP-Method': 'MERGE',
+        },
+        body: patch,
+      }
+
+      await post(config)
+      return {
+        success: true,
+        data: patch,
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: `Error in updateListItem: ${error}`,
+      }
     }
-    return [] as unknown[]
   }
 
 export default updateListItem
