@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.1.0
+
+### Minor Changes
+
+- 9606246: Added initial API
+
 ## 0.0.3
 
 ### Patch Changes
