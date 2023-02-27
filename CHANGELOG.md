@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.1.1
+
+### Patch Changes
+
+- e9f0365: Updated readme and sandbox example
+
 ## 0.1.0
 
 ### Minor Changes
