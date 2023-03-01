@@ -18,7 +18,7 @@ const addDocumentToLibrary =
     fileName: string,
     payload: Buffer
   ): Promise<Result<string>> => {
-    const url = `${protocol}//${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${folder}')/Files/add(url='${fileName}',overwrite=true)`
+    const url = `${protocol}://${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${folder}')/Files/add(url='${fileName}',overwrite=true)`
 
     try {
       const config = {

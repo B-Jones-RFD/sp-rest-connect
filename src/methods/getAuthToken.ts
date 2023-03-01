@@ -13,7 +13,7 @@ const getAuthToken =
     hostname = os.hostname(),
   }: ConnectionOptions) =>
   async (): Promise<Result<string>> => {
-    const url = `${protocol}//${siteUrl}/_api/contextinfo`
+    const url = `${protocol}://${siteUrl}/_api/contextinfo`
 
     const config = {
       url,
@@ -30,6 +30,7 @@ const getAuthToken =
 
     try {
       const res = await post(config)
+      console.log('🚀 ~ file: getAuthToken.ts:33 ~ res:', res)
       const result = safeParseAuthToken(res)
       return result
     } catch (error) {

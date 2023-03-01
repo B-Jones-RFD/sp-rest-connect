@@ -13,7 +13,7 @@ const getListItem =
     hostname = os.hostname(),
   }: ConnectionOptions) =>
   async (listName: string, spId: number): Promise<Result<unknown[]>> => {
-    const url = `${protocol}//${siteUrl}/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
+    const url = `${protocol}://${siteUrl}/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
 
     const config = {
       url,

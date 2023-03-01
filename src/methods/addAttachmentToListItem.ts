@@ -19,7 +19,7 @@ const addAttachmentToListItem =
     fileName: string,
     payload: Buffer
   ): Promise<Result<string>> => {
-    const url = `${protocol}//${siteUrl}/_api/web/lists/GetByTitle('${listName}')/items('${spId}')/AttachmentFiles/add(FileName='${fileName}')`
+    const url = `${protocol}://${siteUrl}/_api/web/lists/GetByTitle('${listName}')/items('${spId}')/AttachmentFiles/add(FileName='${fileName}')`
 
     try {
       const config = {

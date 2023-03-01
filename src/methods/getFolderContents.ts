@@ -13,7 +13,7 @@ const getFolderContents =
     hostname = os.hostname(),
   }: ConnectionOptions) =>
   async (folder: string): Promise<Result<unknown[]>> => {
-    const url = `${protocol}//${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${folder}')/Files`
+    const url = `${protocol}://${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${folder}')/Files`
 
     const config = {
       url,

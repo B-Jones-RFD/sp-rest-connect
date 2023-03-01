@@ -16,7 +16,7 @@ const deleteListItem =
     listName: string,
     spId: number
   ): Promise<Result<string>> => {
-    const url = `${protocol}//${siteUrl}/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
+    const url = `${protocol}://${siteUrl}/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
 
     try {
       const config = {

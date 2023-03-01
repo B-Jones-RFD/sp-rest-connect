@@ -13,7 +13,7 @@ const getDocumentFromLibrary =
     hostname = os.hostname(),
   }: ConnectionOptions) =>
   async (folder: string, fileName: string) => {
-    const url = `${protocol}//${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${folder}')/Files('${fileName}')/$value`
+    const url = `${protocol}://${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${folder}')/Files('${fileName}')/$value`
 
     const config = {
       url,

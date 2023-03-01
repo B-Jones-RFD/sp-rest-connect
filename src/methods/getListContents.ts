@@ -16,7 +16,7 @@ const getListContents =
     listName: string,
     params?: URLSearchParams
   ): Promise<Result<unknown[]>> => {
-    let url = `${protocol}//${siteUrl}}/_api/web/lists/GetByTitle('${listName}')/items`
+    let url = `${protocol}://${siteUrl}}/_api/web/lists/GetByTitle('${listName}')/items`
 
     if (params) {
       url + '?' + params.toString()
