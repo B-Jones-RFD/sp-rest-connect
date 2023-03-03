@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.2.0
+
+### Minor Changes
+
+- f3619ae: getList and getDocument library methods validated
+
 ## 0.1.1
 
 ### Patch Changes
