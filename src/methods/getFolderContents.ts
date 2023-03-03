@@ -5,7 +5,8 @@ import { safeParseResults } from '../utils/parse'
 
 const getFolderContents =
   ({
-    siteUrl,
+    site,
+    serverRelativeUrl,
     username,
     password,
     protocol = 'https',
@@ -13,7 +14,9 @@ const getFolderContents =
     hostname = os.hostname(),
   }: ConnectionOptions) =>
   async (folder: string): Promise<Result<unknown[]>> => {
-    const url = `${protocol}://${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${folder}')/Files`
+    const url = `${protocol}://${
+      site + serverRelativeUrl
+    }/_api/web/GetFolderByServerRelativeUrl('${serverRelativeUrl}/${folder}')/Files`
 
     const config = {
       url,
@@ -22,12 +25,12 @@ const getFolderContents =
       workstation: hostname,
       domain,
       headers: {
-        Accept: 'application/json; odata=verbose',
+        Accept: 'application/json; odata=nometadata',
       },
     }
 
     try {
-      const res = get(config)
+      const res = await get(config)
       const results = safeParseResults(res)
       return results
     } catch (error) {

@@ -4,7 +4,8 @@ import { post } from '../ntlm'
 
 const addListItem =
   ({
-    siteUrl,
+    site,
+    serverRelativeUrl,
     username,
     password,
     protocol = 'https',
@@ -17,7 +18,9 @@ const addListItem =
     spId: number,
     payload: string
   ): Promise<Result<string>> => {
-    const url = `${protocol}://${siteUrl}/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
+    const url = `${protocol}://${
+      site + serverRelativeUrl
+    }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
 
     try {
       const config = {

@@ -6,7 +6,7 @@ Use SharePoint Rest Services to interact with lists and document libraries. I go
 
 ## Prerequisites
 
-This project requires NodeJS (version 16 or later) and NPM.
+This project requires NodeJS (version 16) and NPM.
 [Node](http://nodejs.org/) and [NPM](https://npmjs.org/) are really easy to install.
 To make sure you have them available on your machine,
 try running the following command.
@@ -14,7 +14,7 @@ try running the following command.
 ```sh
 $ npm -v && node -v
 9.5.0
-v18.14.2
+v16.19.1
 ```
 
 [PNPM] (https://pnpm.io/) is a awesome alternative to NPM and is recommended.
@@ -82,11 +82,17 @@ const connection = createConnection(options: Options);
 | ------ | ------------------- |
 | string | SharePoint password |
 
-`siteUrl`
+`site`
 
-| Type   | Description                  |
-| ------ | ---------------------------- |
-| string | SharePoint domain/site route |
+| Type   | Description       | Example               |
+| ------ | ----------------- | --------------------- |
+| string | SharePoint domain | sharepoint.domain.com |
+
+`serverRelativeUrl`
+
+| Type   | Description                  | Example          |
+| ------ | ---------------------------- | ---------------- |
+| string | SharePoint site relative Url | /path/to/my/site |
 
 `protocol`
 
@@ -109,7 +115,7 @@ const connection = createConnection(options: Options);
 ### getListContents
 
 ```ts
-const response = connection.getListContents(listName: string)
+const response = await connection.getListContents(listName: string)
 const result = response.sucess ? response.data : response.error
 ```
 

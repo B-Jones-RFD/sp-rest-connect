@@ -1,9 +1,9 @@
 import type { ConnectionOptions, Result } from '..'
 import os from 'os'
-import { get } from '../ntlm'
+import { post } from '../ntlm'
 import { safeParseDocument } from '../utils/parse'
 
-const getDocumentFromLibrary =
+const deleteDocumentFromLibrary =
   ({
     site,
     serverRelativeUrl,
@@ -13,10 +13,14 @@ const getDocumentFromLibrary =
     domain = '',
     hostname = os.hostname(),
   }: ConnectionOptions) =>
-  async (folder: string, fileName: string): Promise<Result<string>> => {
+  async (
+    accessToken: string,
+    folder: string,
+    fileName: string
+  ): Promise<Result<string>> => {
     const url = `${protocol}://${
       site + serverRelativeUrl
-    }/_api/web/GetFolderByServerRelativeUrl('${serverRelativeUrl}/${folder}')/Files('${fileName}')/$value`
+    }/_api/web/GetFileByServerRelativeUrl('${serverRelativeUrl}/${folder}/${fileName}')`
 
     const config = {
       url,
@@ -25,20 +29,24 @@ const getDocumentFromLibrary =
       workstation: hostname,
       domain,
       headers: {
-        Accept: 'application/json; odata=verbose',
+        'X-RequestDigest': accessToken,
+        'If-Match': '*',
+        'X-HTTP-Method': 'DELETE',
       },
     }
 
     try {
-      const res = await get(config)
-      const document = safeParseDocument(res)
-      return document
+      await post(config)
+      return {
+        success: true,
+        data: fileName,
+      }
     } catch (error) {
       return {
         success: false,
-        error: `Error in getDocumentFromLibrary: ${error}`,
+        error: `Error in deleteDocumentFromLibrary: ${error}`,
       }
     }
   }
 
-export default getDocumentFromLibrary
+export default deleteDocumentFromLibrary

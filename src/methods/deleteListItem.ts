@@ -4,7 +4,8 @@ import { post } from '../ntlm'
 
 const deleteListItem =
   ({
-    siteUrl,
+    site,
+    serverRelativeUrl,
     username,
     password,
     protocol = 'https',
@@ -16,7 +17,9 @@ const deleteListItem =
     listName: string,
     spId: number
   ): Promise<Result<string>> => {
-    const url = `${protocol}://${siteUrl}/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
+    const url = `${protocol}://${
+      site + serverRelativeUrl
+    }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
 
     try {
       const config = {

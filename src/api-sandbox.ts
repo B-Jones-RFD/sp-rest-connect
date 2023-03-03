@@ -4,7 +4,8 @@ import { createSiteConnection } from './'
 const connection = createSiteConnection({
   username: 'tim',
   password: 'pswd',
-  siteUrl: 'my.sharepoint.com/path/to/my/site',
+  site: 'my.sharepoint.com',
+  serverRelativeUrl: '/path/to/my/site',
   protocol: 'https',
   domain: 'domain.com',
   hostname: hostname(),

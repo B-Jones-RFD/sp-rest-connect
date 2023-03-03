@@ -19,12 +19,28 @@ export function safeParseResults(res: any): Result<unknown[]> {
   if (typeof res !== 'string')
     return { success: false, error: 'Incorrect response format' }
   const parsed = JSON.parse(res)
-  if (!parsed.d?.results)
-    return { success: false, error: 'Results not in response' }
-  const results = parsed.d.results
+  if (!parsed.value) return { success: false, error: 'Results not in response' }
+  const results = parsed.value
   return results && Array.isArray(results)
     ? { success: true, data: results }
     : { success: false, error: 'No results returned' }
+}
+
+export function safeParseResult(res: any): Result<unknown> {
+  if (typeof res !== 'string')
+    return { success: false, error: 'Incorrect response format' }
+  const result = JSON.parse(res)
+  return result
+    ? { success: true, data: result }
+    : { success: false, error: 'No result returned' }
+}
+
+export function safeParseDocument(res: any): Result<string> {
+  if (typeof res !== 'string')
+    return { success: false, error: 'Incorrect response format' }
+  return res
+    ? { success: true, data: res }
+    : { success: false, error: 'No data returned' }
 }
 
 export function safeParseId(res: any): Result<unknown[]> {

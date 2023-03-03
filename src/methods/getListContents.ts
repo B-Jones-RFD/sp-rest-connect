@@ -7,7 +7,8 @@ const getListContents =
   ({
     username,
     password,
-    siteUrl,
+    site,
+    serverRelativeUrl,
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
@@ -16,11 +17,12 @@ const getListContents =
     listName: string,
     params?: URLSearchParams
   ): Promise<Result<unknown[]>> => {
-    let url = `${protocol}://${siteUrl}}/_api/web/lists/GetByTitle('${listName}')/items`
+    const baseUrl = `${protocol}://${
+      site + serverRelativeUrl
+    }/_api/web/lists/GetByTitle('${listName}')/items`
+    const query = params?.toString()
+    const url = query && query.length > 0 ? baseUrl + '?' + query : baseUrl
 
-    if (params) {
-      url + '?' + params.toString()
-    }
     const config = {
       url,
       username,
@@ -28,12 +30,12 @@ const getListContents =
       workstation: hostname,
       domain,
       headers: {
-        Accept: 'application/json; odata=verbose',
+        Accept: 'application/json; odata=nometadata',
       },
     }
 
     try {
-      const res = get(config)
+      const res = await get(config)
       const results = safeParseResults(res)
       return results
     } catch (error) {

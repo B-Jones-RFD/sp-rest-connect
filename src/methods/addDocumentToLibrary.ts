@@ -5,7 +5,8 @@ import { safeParseServerUrl } from '../utils/parse'
 
 const addDocumentToLibrary =
   ({
-    siteUrl,
+    site,
+    serverRelativeUrl,
     username,
     password,
     protocol = 'https',
@@ -18,7 +19,9 @@ const addDocumentToLibrary =
     fileName: string,
     payload: Buffer
   ): Promise<Result<string>> => {
-    const url = `${protocol}://${siteUrl}/_api/web/GetFolderByServerRelativeUrl('${folder}')/Files/add(url='${fileName}',overwrite=true)`
+    const url = `${protocol}://${
+      site + serverRelativeUrl
+    }/_api/web/GetFolderByServerRelativeUrl('${folder}')/Files/add(url='${fileName}',overwrite=true)`
 
     try {
       const config = {
