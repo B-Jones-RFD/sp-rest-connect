@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.3.0
+
+### Minor Changes
+
+- 8991959: Updated APi to export factory methods and added unit tests for utils
+
 ## 0.2.0
 
 ### Minor Changes
