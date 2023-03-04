@@ -1,9 +1,12 @@
-import type { ConnectionOptions, Result } from '..'
+import type { ActionFactory, Result } from '../@types'
 import os from 'os'
 import { get } from '../ntlm'
-import { safeParseDocument } from '../utils/parse'
+import { safeParseDocument } from '../utils'
 
-const getDocumentFromLibrary =
+export const getDocumentFromLibrary: ActionFactory<
+  { folder: string; fileName: string },
+  Promise<Result<string>>
+> =
   ({
     site,
     serverRelativeUrl,
@@ -12,8 +15,8 @@ const getDocumentFromLibrary =
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-  }: ConnectionOptions) =>
-  async (folder: string, fileName: string): Promise<Result<string>> => {
+  }) =>
+  async ({ folder, fileName }): Promise<Result<string>> => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/GetFolderByServerRelativeUrl('${serverRelativeUrl}/${folder}')/Files('${fileName}')/$value`
@@ -40,5 +43,3 @@ const getDocumentFromLibrary =
       }
     }
   }
-
-export default getDocumentFromLibrary

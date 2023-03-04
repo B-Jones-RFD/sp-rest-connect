@@ -1,9 +1,18 @@
-import type { ConnectionOptions, Result } from '..'
+import type { Result, ActionFactory } from '../@types'
 import os from 'os'
 import { post } from '../ntlm'
-import { safeParseServerUrl } from '../utils/parse'
+import { safeParseServerUrl } from '../utils'
 
-const addAttachmentToListItem =
+export const addAttachmentToListItem: ActionFactory<
+  {
+    accessToken: string
+    listName: string
+    spId: number
+    fileName: string
+    payload: Buffer
+  },
+  Promise<Result<string>>
+> =
   ({
     site,
     serverRelativeUrl,
@@ -12,14 +21,8 @@ const addAttachmentToListItem =
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-  }: ConnectionOptions) =>
-  async (
-    accessToken: string,
-    listName: string,
-    spId: number,
-    fileName: string,
-    payload: Buffer
-  ): Promise<Result<string>> => {
+  }) =>
+  async ({ accessToken, listName, spId, fileName, payload }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')/AttachmentFiles/add(FileName='${fileName}')`
@@ -49,5 +52,3 @@ const addAttachmentToListItem =
       }
     }
   }
-
-export default addAttachmentToListItem

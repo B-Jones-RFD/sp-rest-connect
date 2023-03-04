@@ -1,8 +1,15 @@
-import type { ConnectionOptions, Result } from '..'
+import type { ActionFactory, Result } from '../@types'
 import os from 'os'
 import { post } from '../ntlm'
 
-const deleteListItem =
+export const deleteListItem: ActionFactory<
+  {
+    accessToken: string
+    listName: string
+    spId: number
+  },
+  Promise<Result<string>>
+> =
   ({
     site,
     serverRelativeUrl,
@@ -11,12 +18,8 @@ const deleteListItem =
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-  }: ConnectionOptions) =>
-  async (
-    accessToken: string,
-    listName: string,
-    spId: number
-  ): Promise<Result<string>> => {
+  }) =>
+  async ({ accessToken, listName, spId }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
@@ -50,5 +53,3 @@ const deleteListItem =
       }
     }
   }
-
-export default deleteListItem

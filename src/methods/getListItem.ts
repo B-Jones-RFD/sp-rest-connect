@@ -1,9 +1,12 @@
-import type { ConnectionOptions, Result } from '..'
+import type { ActionFactory, Result } from '../@types'
 import os from 'os'
 import { get } from '../ntlm'
-import { safeParseResult } from '../utils/parse'
+import { safeParseResult } from '../utils'
 
-const getListItem =
+export const getListItem: ActionFactory<
+  { listName: string; spId: number },
+  Promise<Result<unknown>>
+> =
   ({
     site,
     serverRelativeUrl,
@@ -12,8 +15,8 @@ const getListItem =
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-  }: ConnectionOptions) =>
-  async (listName: string, spId: number): Promise<Result<unknown>> => {
+  }) =>
+  async ({ listName, spId }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
@@ -40,5 +43,3 @@ const getListItem =
       }
     }
   }
-
-export default getListItem

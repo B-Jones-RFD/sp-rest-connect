@@ -1,8 +1,16 @@
-import type { ConnectionOptions, Result } from '..'
+import type { ActionFactory, Result } from '../@types'
 import os from 'os'
 import { post } from '../ntlm'
 
-const updateListItem =
+export const updateListItem: ActionFactory<
+  {
+    accessToken: string
+    listName: string
+    spId: number
+    patch: string
+  },
+  Promise<Result<string>>
+> =
   ({
     site,
     serverRelativeUrl,
@@ -11,13 +19,8 @@ const updateListItem =
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-  }: ConnectionOptions) =>
-  async (
-    accessToken: string,
-    listName: string,
-    spId: number,
-    patch: string
-  ): Promise<Result<string>> => {
+  }) =>
+  async ({ accessToken, listName, spId, patch }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
@@ -52,5 +55,3 @@ const updateListItem =
       }
     }
   }
-
-export default updateListItem

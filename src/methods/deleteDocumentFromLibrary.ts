@@ -1,9 +1,15 @@
-import type { ConnectionOptions, Result } from '..'
+import type { ActionFactory, Result } from '../@types'
 import os from 'os'
 import { post } from '../ntlm'
-import { safeParseDocument } from '../utils/parse'
 
-const deleteDocumentFromLibrary =
+export const deleteDocumentFromLibrary: ActionFactory<
+  {
+    accessToken: string
+    folder: string
+    fileName: string
+  },
+  Promise<Result<string>>
+> =
   ({
     site,
     serverRelativeUrl,
@@ -12,12 +18,8 @@ const deleteDocumentFromLibrary =
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-  }: ConnectionOptions) =>
-  async (
-    accessToken: string,
-    folder: string,
-    fileName: string
-  ): Promise<Result<string>> => {
+  }) =>
+  async ({ accessToken, folder, fileName }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/GetFileByServerRelativeUrl('${serverRelativeUrl}/${folder}/${fileName}')`
@@ -48,5 +50,3 @@ const deleteDocumentFromLibrary =
       }
     }
   }
-
-export default deleteDocumentFromLibrary

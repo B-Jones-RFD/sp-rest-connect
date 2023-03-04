@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
-describe('Template', () => {
-  it('should always pass', () => {
+describe('Validate Test Runner', () => {
+  it('tests are working', () => {
     expect(1).toBe(1)
   })
 })

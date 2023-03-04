@@ -1,8 +1,11 @@
-import type { ConnectionOptions, Result } from '..'
+import type { ActionFactory, Result } from '../@types'
 import os from 'os'
 import { post } from '../ntlm'
 
-const addListItem =
+export const addListItem: ActionFactory<
+  { accessToken: string; listName: string; spId: number; payload: string },
+  Promise<Result<string>>
+> =
   ({
     site,
     serverRelativeUrl,
@@ -11,13 +14,8 @@ const addListItem =
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-  }: ConnectionOptions) =>
-  async (
-    accessToken: string,
-    listName: string,
-    spId: number,
-    payload: string
-  ): Promise<Result<string>> => {
+  }) =>
+  async ({ accessToken, listName, spId, payload }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
@@ -50,4 +48,3 @@ const addListItem =
       }
     }
   }
-export default addListItem

@@ -65,10 +65,12 @@ To be determined.
 ### createConnection
 
 ```js
-const connection = createConnection(options: Options);
+import { createConnection } from '@b-jones-rfd/sp-rest-connect'
+
+const connection = createConnection(options: ConnectionOptions);
 ```
 
-#### Options
+#### ConnectionOptions
 
 `username`
 
@@ -114,16 +116,40 @@ const connection = createConnection(options: Options);
 
 ### getListContents
 
+#### Instance method
+
+Get list contents using Connection instance method
+
 ```ts
-const response = await connection.getListContents(listName: string)
+const response = await connection.getListContents(options: Options)
 const result = response.sucess ? response.data : response.error
 ```
+
+#### Factory method
+
+Get list contents using Connection instance method
+
+```ts
+import { getListContents } from '@b-jones-rfd/sp-rest-connect'
+
+const action = getListContents(options: ConnectionOptions)
+const response = await action(options: Options)
+const result = response.sucess ? response.data : response.error
+```
+
+#### Options
 
 `listName`
 
 | Type   | Description          |
 | ------ | -------------------- |
 | string | SharePoint list name |
+
+`params`
+
+| Type            | Description       | Optional |
+| --------------- | ----------------- | -------- |
+| UrlSearchParams | Url Search Params | true     |
 
 ## Contributing
 

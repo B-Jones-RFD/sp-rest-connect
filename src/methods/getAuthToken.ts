@@ -1,9 +1,9 @@
-import type { ConnectionOptions, Result } from '..'
+import type { ActionFactory, Result } from '../@types'
 import os from 'os'
 import { post } from '../ntlm'
-import { safeParseAuthToken } from '../utils/parse'
+import { safeParseAuthToken } from '../utils'
 
-const getAuthToken =
+export const getAuthToken: ActionFactory<void, Promise<Result<string>>> =
   ({
     username,
     password,
@@ -12,8 +12,8 @@ const getAuthToken =
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-  }: ConnectionOptions) =>
-  async (): Promise<Result<string>> => {
+  }) =>
+  async () => {
     const url = `${protocol}://${site + serverRelativeUrl}/_api/contextinfo`
 
     const config = {
@@ -40,5 +40,3 @@ const getAuthToken =
       }
     }
   }
-
-export default getAuthToken
