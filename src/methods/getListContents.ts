@@ -1,11 +1,11 @@
-import type { ActionFactory, Result } from '../@types'
+import type { ActionFactory, Result } from '../types'
 import os from 'os'
 import { get } from '../ntlm'
 import { safeParseResults } from '../utils'
 
 export const getListContents: ActionFactory<
   { listName: string; params?: URLSearchParams },
-  Promise<Result<unknown[]>>
+  unknown[]
 > =
   ({
     username,
@@ -16,7 +16,7 @@ export const getListContents: ActionFactory<
     domain = '',
     hostname = os.hostname(),
   }) =>
-  async ({ listName, params = undefined }): Promise<Result<unknown[]>> => {
+  async ({ listName, params = undefined }) => {
     const baseUrl = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/lists/GetByTitle('${listName}')/items`

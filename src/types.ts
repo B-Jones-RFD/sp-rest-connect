@@ -1,4 +1,14 @@
-export type ConnectionOptions = {
+export type Success<T> = { success: true; data: T }
+
+export type Failure = { success: false; error: string }
+
+export type Result<T> = Success<T> | Failure
+
+export type Action<TParams, TResponse> = (
+  options: TParams
+) => Promise<Result<TResponse>>
+
+export type SiteConnectionOptions = {
   username: string
   password: string
   site: string
@@ -8,17 +18,11 @@ export type ConnectionOptions = {
   hostname?: string
 }
 
-export type Result<T> =
-  | { success: true; data: T }
-  | { success: false; error: string }
+export type ActionFactory<TParams, TResponse> = (
+  options: SiteConnectionOptions
+) => Action<TParams, TResponse>
 
-export type Action<TParams, TResult> = (options: TParams) => TResult
-
-export type ActionFactory<TParams, TResult> = (
-  options: ConnectionOptions
-) => Action<TParams, TResult>
-
-export type Connection = (options: ConnectionOptions) => {
+export type SiteConnection = (options: SiteConnectionOptions) => {
   addAttachmentToListItem: Action<
     {
       accessToken: string
@@ -27,15 +31,15 @@ export type Connection = (options: ConnectionOptions) => {
       fileName: string
       payload: Buffer
     },
-    Promise<Result<string>>
+    string
   >
   addDocumentToLibrary: Action<
     { accessToken: string; folder: string; fileName: string; payload: Buffer },
-    Promise<Result<string>>
+    string
   >
   addListItem: Action<
     { accessToken: string; listName: string; spId: number; payload: string },
-    Promise<Result<string>>
+    string
   >
   deleteDocumentFromLibrary: Action<
     {
@@ -43,7 +47,7 @@ export type Connection = (options: ConnectionOptions) => {
       folder: string
       fileName: string
     },
-    Promise<Result<string>>
+    string
   >
   deleteListItem: Action<
     {
@@ -51,22 +55,16 @@ export type Connection = (options: ConnectionOptions) => {
       listName: string
       spId: number
     },
-    Promise<Result<string>>
+    string
   >
-  getAuthToken: Action<void, Promise<Result<string>>>
-  getDocumentFromLibrary: Action<
-    { folder: string; fileName: string },
-    Promise<Result<string>>
-  >
-  getFolderContents: Action<{ folder: string }, Promise<Result<unknown[]>>>
+  getAuthToken: Action<void, string>
+  getDocumentFromLibrary: Action<{ folder: string; fileName: string }, string>
+  getFolderContents: Action<{ folder: string }, unknown[]>
   getListContents: Action<
     { listName: string; params?: URLSearchParams },
-    Promise<Result<unknown[]>>
+    unknown[]
   >
-  getListItem: Action<
-    { listName: string; spId: number },
-    Promise<Result<unknown>>
-  >
+  getListItem: Action<{ listName: string; spId: number }, unknown>
   updateListItem: Action<
     {
       accessToken: string
@@ -74,6 +72,6 @@ export type Connection = (options: ConnectionOptions) => {
       spId: number
       patch: string
     },
-    Promise<Result<string>>
+    string
   >
 }

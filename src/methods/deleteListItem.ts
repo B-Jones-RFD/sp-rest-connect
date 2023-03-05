@@ -1,4 +1,4 @@
-import type { ActionFactory, Result } from '../@types'
+import type { ActionFactory, Result } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 
@@ -8,7 +8,7 @@ export const deleteListItem: ActionFactory<
     listName: string
     spId: number
   },
-  Promise<Result<string>>
+  string
 > =
   ({
     site,

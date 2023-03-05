@@ -1,4 +1,4 @@
-import type { ActionFactory, Result } from '../@types'
+import type { ActionFactory, Result } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 
@@ -9,7 +9,7 @@ export const updateListItem: ActionFactory<
     spId: number
     patch: string
   },
-  Promise<Result<string>>
+  string
 > =
   ({
     site,

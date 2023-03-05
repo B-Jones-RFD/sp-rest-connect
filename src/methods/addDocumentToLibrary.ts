@@ -1,11 +1,11 @@
-import type { ActionFactory, Result } from '../@types'
+import type { ActionFactory, Result } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 import { safeParseServerUrl } from '../utils'
 
 export const addDocumentToLibrary: ActionFactory<
   { accessToken: string; folder: string; fileName: string; payload: Buffer },
-  Promise<Result<string>>
+  string
 > =
   ({
     site,

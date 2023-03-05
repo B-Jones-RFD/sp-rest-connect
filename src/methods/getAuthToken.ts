@@ -1,9 +1,9 @@
-import type { ActionFactory, Result } from '../@types'
+import type { ActionFactory, Result } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 import { safeParseAuthToken } from '../utils'
 
-export const getAuthToken: ActionFactory<void, Promise<Result<string>>> =
+export const getAuthToken: ActionFactory<void, string> =
   ({
     username,
     password,

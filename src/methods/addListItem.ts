@@ -1,10 +1,10 @@
-import type { ActionFactory, Result } from '../@types'
+import type { ActionFactory, Result } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 
 export const addListItem: ActionFactory<
   { accessToken: string; listName: string; spId: number; payload: string },
-  Promise<Result<string>>
+  string
 > =
   ({
     site,

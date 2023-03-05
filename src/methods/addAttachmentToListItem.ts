@@ -1,4 +1,4 @@
-import type { Result, ActionFactory } from '../@types'
+import type { Result, ActionFactory } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 import { safeParseServerUrl } from '../utils'
@@ -11,7 +11,7 @@ export const addAttachmentToListItem: ActionFactory<
     fileName: string
     payload: Buffer
   },
-  Promise<Result<string>>
+  string
 > =
   ({
     site,
