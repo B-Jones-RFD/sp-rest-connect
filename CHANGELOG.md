@@ -1,5 +1,12 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.3.1
+
+### Patch Changes
+
+- e6693f5: Added types to package export
+  Further enumeration of types
+
 ## 0.3.0
 
 ### Minor Changes
