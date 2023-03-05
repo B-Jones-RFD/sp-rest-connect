@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.3.2
+
+### Patch Changes
+
+- 2b7bde8: Updated Readme
+
 ## 0.3.1
 
 ### Patch Changes
