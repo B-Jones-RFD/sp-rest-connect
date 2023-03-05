@@ -4,8 +4,8 @@ export type Failure = { success: false; error: string }
 
 export type Result<T> = Success<T> | Failure
 
-export type Action<TParams, TResponse> = (
-  options: TParams
+export type Action<TConfig, TResponse> = (
+  options: TConfig
 ) => Promise<Result<TResponse>>
 
 export type SiteConnectionOptions = {

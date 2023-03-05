@@ -1,7 +1,7 @@
 import { hostname } from 'os'
 import { createSiteConnection, getListContents } from '.'
 
-const connectionOpts = {
+const siteConnectionOptions = {
   username: 'tim',
   password: 'pswd',
   site: 'my.sharepoint.com',
@@ -11,7 +11,7 @@ const connectionOpts = {
   hostname: hostname(),
 }
 
-const connection = createSiteConnection(connectionOpts)
+const connection = createSiteConnection(siteConnectionOptions)
 
 const params = new URLSearchParams({
   $select: 'Id',
@@ -27,7 +27,7 @@ async function getMyList(listName: string) {
 
 // Using factory method
 async function getMyListAlt(listName: string) {
-  const action = getListContents(connectionOpts)
+  const action = getListContents(siteConnectionOptions)
   const contents = await action({ listName, params })
   if (contents.success) return contents.data
   else throw new Error(contents.error)

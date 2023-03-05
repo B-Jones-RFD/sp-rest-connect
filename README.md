@@ -28,9 +28,9 @@ v16.19.1
   - [Installation](#installation)
   - [Usage](#usage)
   - [API](#api)
-    - [createConnection](#createConnection)
-      - [Options](#options)
-    - [getListContents](#getListContents)
+    - [createSiteConnection](#createSiteConnection)
+    - [Actions](#actions)
+    - [Responses](#responses)
   - [Contributing](#contributing)
   - [Versioning](#versioning)
   - [Authors](#authors)
@@ -47,36 +47,79 @@ These instructions will get you a copy of the project up and running on your loc
 To install and set up the library, run:
 
 ```sh
-$ npm i sp-rest-connect
+$ npm i @b-jones-rfd/sp-rest-connect
 ```
 
 Or if you prefer using Yarn:
 
 ```sh
-$ yarn add --dev sp-rest-connect
+$ yarn add @b-jones-rfd/sp-rest-connect
+```
+
+Or for PNPM:
+
+```sh
+$ pnpm add @b-jones-rfd/sp-rest-connect
 ```
 
 ## Usage
 
-To be determined.
+### Instance Methods
+
+Actions can be performed against site collection lists or document libraries using instance methods on a SiteCollection instance.
+
+```ts
+import { createSiteConnection } from '@b-jones-rfd/sp-rest-connect'
+
+const siteConnectionOptions = {
+  username: 'tim',
+  password: 'myexceptionalsecurepassword',
+  site: 'my.sharepoint.com',
+  serverRelativeUrl: '/path/to/my/site',
+  protocol: 'https' as const,
+}
+
+const connection: SiteConnection = createSiteConnection(siteConnectionOptions)
+
+const params = new URLSearchParams({
+  $select: 'Id',
+  $top: '200',
+})
+
+async function getMyListUsingConnection(listName: string) {
+  const contents = await connection.getListContents({ listName, params })
+  if (contents.success) return contents.data
+  else throw new Error(contents.error)
+}
+```
+
+### Factory Action Methods
+
+Additionally, for single use or reduced import size, action factory methods can be imported directly. Call the factory method with a SiteConnectionOptions object to return an asynchronous action function that can be called directly.
+
+```ts
+import { getListContents } from '@b-jones-rfd/sp-rest-connect'
+
+// Using factory method to create a SharePoint action
+async function getMyListUsingAction(listName: string) {
+  const action = getListContents(connectionOpts)
+  const contents = await action({ listName, params })
+  if (contents.success) return contents.data
+  else throw new Error(contents.error)
+}
+```
 
 ## API
 
-### createConnection
+### createSiteConnection
 
-```js
-import { createConnection } from '@b-jones-rfd/sp-rest-connect'
-
-const connection = createConnection(options: ConnectionOptions);
-```
-
-#### ConnectionOptions
+#### SiteConnectionOptions
 
 `username`
 
-| Type   | Description         |
-| ------ | ------------------- |
-| string | SharePoint username |
+| Type   | Description         | Example |
+| ------ | ------------------- | ------- |
+| string | SharePoint username | 'user'  |
 
 `password`
 
@@ -114,42 +157,135 @@ const connection = createConnection(options: ConnectionOptions);
 | ------ | ------------- | ----------- |
 | string | os.hostname() | OS Hostname |
 
-### getListContents
+### Actions
 
-#### Instance method
-
-Get list contents using Connection instance method
+SiteConnection instance action methods.
 
 ```ts
-const response = await connection.getListContents(options: Options)
-const result = response.sucess ? response.data : response.error
+export type Action<TConfig, TResponse> = (
+  options: TConfig
+) => Promise<Result<TResponse>>
 ```
 
-#### Factory method
+If using the actions directly call the factory method with a SiteConnectionOptions object to return an action that can be used to execute a SharePoint action.
 
-Get list contents using Connection instance method
+#### addAttachmentToListItem(options)
+
+`options`
+
+| Property    | Type   | Description             | Required |
+| ----------- | ------ | ----------------------- | -------- |
+| accessToken | string | SharePoint access token | Y        |
+| listName    | string | SharePoint list name    | Y        |
+| spId        | number | SharePoint list item ID | Y        |
+| fileName    | string | File name               | Y        |
+| payload     | Buffer | File contents           | Y        |
+
+#### addDocumentToLibrary(options)
+
+`options`
+
+| Property    | Type   | Description             | Required |
+| ----------- | ------ | ----------------------- | -------- |
+| accessToken | string | SharePoint access token | Y        |
+| folder      | string | SharePoint folder name  | Y        |
+| fileName    | string | File name               | Y        |
+| payload     | Buffer | File contents           | Y        |
+
+#### addListItem(options)
+
+`options`
+
+| Property    | Type   | Description              | Required |
+| ----------- | ------ | ------------------------ | -------- |
+| accessToken | string | SharePoint access token  | Y        |
+| listName    | string | SharePoint list name     | Y        |
+| spId        | number | SharePoint list item ID  | Y        |
+| payload     | string | List item JSON as string | Y        |
+
+#### deleteDocumentFromLibrary(options)
+
+`options`
+
+| Property    | Type   | Description             | Required |
+| ----------- | ------ | ----------------------- | -------- |
+| accessToken | string | SharePoint access token | Y        |
+| folder      | string | SharePoint folder name  | Y        |
+| fileName    | string | File name               | Y        |
+
+#### deleteListItem(options)
+
+`options`
+
+| Property    | Type   | Description             | Required |
+| ----------- | ------ | ----------------------- | -------- |
+| accessToken | string | SharePoint access token | Y        |
+| listName    | string | SharePoint list name    | Y        |
+| spId        | number | SharePoint list item ID | Y        |
+
+#### getAuthToken()
+
+#### getDocumentFromLibrary(options)
+
+`options`
+
+| Property | Type   | Description            | Required |
+| -------- | ------ | ---------------------- | -------- |
+| folder   | string | SharePoint folder name | Y        |
+| fileName | string | File name              | Y        |
+
+#### getListContents(options)
+
+`options`
+
+| Property | Type            | Description          | Required |
+| -------- | --------------- | -------------------- | -------- |
+| listName | string          | SharePoint list name | Y        |
+| params   | UrlSearchParams | SharePoint list name | N        |
+
+#### getListItem(options)
+
+`options`
+
+| Property | Type   | Description             | Required |
+| -------- | ------ | ----------------------- | -------- |
+| listName | string | SharePoint list name    | Y        |
+| spId     | number | SharePoint list item ID | Y        |
+
+#### updateListItem(options)
+
+`options`
+
+| Property    | Type   | Description                      | Required |
+| ----------- | ------ | -------------------------------- | -------- |
+| accessToken | string | SharePoint access token          | Y        |
+| listName    | string | SharePoint list name             | Y        |
+| spId        | number | SharePoint list item ID          | Y        |
+| patch       | string | Updated list item JSON as string | Y        |
+
+## Responses
+
+Responses are provided based on the Result type. Success can be determined by checking the success property.
 
 ```ts
-import { getListContents } from '@b-jones-rfd/sp-rest-connect'
-
-const action = getListContents(options: ConnectionOptions)
-const response = await action(options: Options)
-const result = response.sucess ? response.data : response.error
+export type Result<TResponse> = Success<TResponse> | Failure
 ```
 
-#### Options
+### Success
 
-`listName`
+Response is returned in the data property.
 
-| Type   | Description          |
-| ------ | -------------------- |
-| string | SharePoint list name |
+```ts
+type Success<TResponse> = { success: true; data: TResponse }
+```
 
-`params`
+### Failure
 
-| Type            | Description       | Optional |
-| --------------- | ----------------- | -------- |
-| UrlSearchParams | Url Search Params | true     |
+Errors are returned in the error property.
+
+```ts
+type Failure = { success: false; error: string }
+```
 
 ## Contributing
 
@@ -157,7 +293,7 @@ This is a pet project to save me time at work. It is still under development and
 
 ## Versioning
 
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags).
+We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/B-Jones-RFD/sp-rest-connect/tags).
 
 ## Authors
 
