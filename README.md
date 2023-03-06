@@ -82,7 +82,7 @@ const siteConnectionOptions = {
 const connection: SiteConnection = createSiteConnection(siteConnectionOptions)
 
 const params = new URLSearchParams({
-  $select: 'Id',
+  $select: 'Id,Title',
   $top: '200',
 })
 
@@ -100,7 +100,6 @@ Additionally, for single use or reduced import size, action factory methods can 
 ```ts
 import { getListContents } from '@b-jones-rfd/sp-rest-connect'
 
-// Using factory method to create a SharePoint action
 async function getMyListUsingAction(listName: string) {
   const action = getListContents(connectionOpts)
   const contents = await action({ listName, params })
@@ -200,7 +199,6 @@ If using the actions directly call the factory method with a SiteConnectionOptio
 | ----------- | ------ | ------------------------ | -------- |
 | accessToken | string | SharePoint access token  | Y        |
 | listName    | string | SharePoint list name     | Y        |
-| spId        | number | SharePoint list item ID  | Y        |
 | payload     | string | List item JSON as string | Y        |
 
 #### deleteDocumentFromLibrary(options)

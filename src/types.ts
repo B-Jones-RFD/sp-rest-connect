@@ -38,7 +38,7 @@ export type SiteConnection = (options: SiteConnectionOptions) => {
     string
   >
   addListItem: Action<
-    { accessToken: string; listName: string; spId: number; payload: string },
+    { accessToken: string; listName: string; payload: string },
     string
   >
   deleteDocumentFromLibrary: Action<

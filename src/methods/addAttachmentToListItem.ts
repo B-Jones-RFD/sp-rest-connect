@@ -1,4 +1,4 @@
-import type { Result, ActionFactory } from '../types'
+import type { ActionFactory } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 import { safeParseServerUrl } from '../utils'

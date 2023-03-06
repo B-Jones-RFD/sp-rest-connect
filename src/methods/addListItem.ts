@@ -1,9 +1,9 @@
-import type { ActionFactory, Result } from '../types'
+import type { ActionFactory } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 
 export const addListItem: ActionFactory<
-  { accessToken: string; listName: string; spId: number; payload: string },
+  { accessToken: string; listName: string; payload: string },
   string
 > =
   ({
@@ -15,10 +15,10 @@ export const addListItem: ActionFactory<
     domain = '',
     hostname = os.hostname(),
   }) =>
-  async ({ accessToken, listName, spId, payload }) => {
+  async ({ accessToken, listName, payload }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
-    }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
+    }/_api/web/lists/GetByTitle('${listName}')/items`
 
     try {
       const config = {
