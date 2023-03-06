@@ -1,5 +1,3 @@
-export const resultSuccess = (data: unknown) => ({ success: true, data })
+import { failure } from '../src/utils'
 
-export const resultFailure = (error: string) => ({ success: false, error })
-
-export const formatError = resultFailure('Incorrect response format')
+export const formatError = failure('Incorrect response format')

@@ -1,13 +1,13 @@
 import type { Failure, Result, Success } from './types'
 
-function success<T>(data: T): Success<T> {
+export function success<T>(data: T): Success<T> {
   return {
     success: true,
     data,
   }
 }
 
-function failure(error: string): Failure {
+export function failure(error: string): Failure {
   return {
     success: false,
     error,
@@ -27,6 +27,22 @@ export function safeParseAuthToken(res: any): Result<string> {
     return typeof token !== 'string'
       ? failure('Access token not in response')
       : success(token)
+  } catch (error) {
+    return failure(`Unable to parse ${res}`)
+  }
+}
+
+export function safeParseItemType(res: any): Result<string> {
+  if (typeof res !== 'string') return failure('Incorrect response format')
+  try {
+    const parsed = JSON.parse(res)
+    const results = parsed
+    if (!parsed.ListItemEntityTypeFullName)
+      return failure('ListItemEntityTypeFullName not in response')
+    return results.ListItemEntityTypeFullName &&
+      typeof results.ListItemEntityTypeFullName === 'string'
+      ? success(results.ListItemEntityTypeFullName)
+      : failure('Item type not returned')
   } catch (error) {
     return failure(`Unable to parse ${res}`)
   }

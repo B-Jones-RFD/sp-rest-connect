@@ -1,12 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { resultSuccess, resultFailure, formatError } from './test-utils'
+import { formatError } from './test-utils'
 import {
+  success,
+  failure,
   safeParseAuthToken,
   safeParseResults,
   safeParseResult,
   safeParseDocument,
   safeParseId,
   safeParseServerUrl,
+  safeParseItemType,
 } from '../src/utils'
 
 describe('safeParseAuthToken', () => {
@@ -20,7 +23,7 @@ describe('safeParseAuthToken', () => {
 
   it('should pass with correct data', () => {
     const res = JSON.stringify(fixture)
-    const expected = resultSuccess('testtokenvalue')
+    const expected = success('testtokenvalue')
     const parsed = safeParseAuthToken(res)
     expect(parsed).toStrictEqual(expected)
   })
@@ -34,7 +37,7 @@ describe('safeParseAuthToken', () => {
 
   it('should fail when GetContextWebInformation missing', () => {
     const res = JSON.stringify({ d: { someprop: 'value' } })
-    const expected = resultFailure('GetContextWebInformation not in response')
+    const expected = failure('GetContextWebInformation not in response')
     const parsed = safeParseAuthToken(res)
     expect(parsed).toStrictEqual(expected)
   })
@@ -47,7 +50,7 @@ describe('safeParseAuthToken', () => {
         },
       },
     })
-    const expected = resultFailure('FormDigestValue not in response')
+    const expected = failure('FormDigestValue not in response')
     const parsed = safeParseAuthToken(res)
     expect(parsed).toStrictEqual(expected)
   })
@@ -60,14 +63,14 @@ describe('safeParseAuthToken', () => {
         },
       },
     })
-    const expected = resultFailure('Access token not in response')
+    const expected = failure('Access token not in response')
     const parsed = safeParseAuthToken(res)
     expect(parsed).toStrictEqual(expected)
   })
 
   it('should fail with invalid JSON', () => {
     const res = '{d: 1'
-    const expected = resultFailure('Unable to parse {d: 1')
+    const expected = failure('Unable to parse {d: 1')
     const parsed = safeParseAuthToken(res)
     expect(parsed).toStrictEqual(expected)
   })
@@ -80,7 +83,7 @@ describe('safeParseResults', () => {
 
   it('should pass with correct data', () => {
     const res = JSON.stringify(fixture)
-    const expected = resultSuccess(['result 1', 'result 2'])
+    const expected = success(['result 1', 'result 2'])
     const parsed = safeParseResults(res)
     expect(parsed).toStrictEqual(expected)
   })
@@ -94,21 +97,21 @@ describe('safeParseResults', () => {
 
   it('should fail value not in response', () => {
     const res = JSON.stringify({ prop: 'value' })
-    const expected = resultFailure('Results not in response')
+    const expected = failure('Results not in response')
     const parsed = safeParseResults(res)
     expect(parsed).toStrictEqual(expected)
   })
 
   it('should fail value is not an array', () => {
     const res = JSON.stringify({ value: 'value' })
-    const expected = resultFailure('No results returned')
+    const expected = failure('No results returned')
     const parsed = safeParseResults(res)
     expect(parsed).toStrictEqual(expected)
   })
 
   it('should fail with invalid JSON', () => {
     const res = '{d: 1'
-    const expected = resultFailure('Unable to parse {d: 1')
+    const expected = failure('Unable to parse {d: 1')
     const parsed = safeParseResults(res)
     expect(parsed).toStrictEqual(expected)
   })
@@ -121,7 +124,7 @@ describe('safeParseResult', () => {
 
   it('should pass with correct data', () => {
     const res = JSON.stringify(fixture)
-    const expected = resultSuccess({
+    const expected = success({
       result: 'pass',
     })
     const parsed = safeParseResult(res)
@@ -137,7 +140,7 @@ describe('safeParseResult', () => {
 
   it('should fail with invalid JSON', () => {
     const res = '{d: 1'
-    const expected = resultFailure('Unable to parse {d: 1')
+    const expected = failure('Unable to parse {d: 1')
     const parsed = safeParseResult(res)
     expect(parsed).toStrictEqual(expected)
   })
@@ -148,7 +151,7 @@ describe('safeParseDocument', () => {
 
   it('should pass with correct data', () => {
     const res = fixture
-    const expected = resultSuccess(fixture)
+    const expected = success(fixture)
     const parsed = safeParseDocument(res)
     expect(parsed).toStrictEqual(expected)
   })
@@ -170,7 +173,7 @@ describe('safeParseId', () => {
 
   it('should pass with correct data', () => {
     const res = JSON.stringify(fixture)
-    const expected = resultSuccess(1)
+    const expected = success(1)
     const parsed = safeParseId(res)
     expect(parsed).toStrictEqual(expected)
   })
@@ -188,14 +191,14 @@ describe('safeParseId', () => {
         prop: 1,
       },
     })
-    const expected = resultFailure('ID not in response')
+    const expected = failure('ID not in response')
     const parsed = safeParseId(res)
     expect(parsed).toStrictEqual(expected)
   })
 
   it('should fail with invalid JSON', () => {
     const res = '{d: 1'
-    const expected = resultFailure('Unable to parse {d: 1')
+    const expected = failure('Unable to parse {d: 1')
     const parsed = safeParseId(res)
     expect(parsed).toStrictEqual(expected)
   })
@@ -210,7 +213,7 @@ describe('safeParseServerUrl', () => {
 
   it('should pass with correct data', () => {
     const res = JSON.stringify(fixture)
-    const expected = resultSuccess('/path/to/site')
+    const expected = success('/path/to/site')
     const parsed = safeParseServerUrl(res)
     expect(parsed).toStrictEqual(expected)
   })
@@ -228,7 +231,7 @@ describe('safeParseServerUrl', () => {
         prop: 'value',
       },
     })
-    const expected = resultFailure('ServerRelativeUrl not in response')
+    const expected = failure('ServerRelativeUrl not in response')
     const parsed = safeParseServerUrl(res)
     expect(parsed).toStrictEqual(expected)
   })
@@ -239,15 +242,51 @@ describe('safeParseServerUrl', () => {
         ServerRelativeUrl: 1,
       },
     })
-    const expected = resultFailure('Invalid ServerRelativeUrl type returned')
+    const expected = failure('Invalid ServerRelativeUrl type returned')
     const parsed = safeParseServerUrl(res)
     expect(parsed).toStrictEqual(expected)
   })
 
   it('should fail with invalid JSON', () => {
     const res = '{d: 1'
-    const expected = resultFailure('Unable to parse {d: 1')
+    const expected = failure('Unable to parse {d: 1')
     const parsed = safeParseServerUrl(res)
+    expect(parsed).toStrictEqual(expected)
+  })
+})
+
+describe('safeParseItemType', () => {
+  const fixture = {
+    ListItemEntityTypeFullName: 'SP.Data.MyListItem',
+  }
+
+  it('should pass with correct data', () => {
+    const res = JSON.stringify(fixture)
+    const expected = success('SP.Data.MyListItem')
+    const parsed = safeParseItemType(res)
+    expect(parsed).toStrictEqual(expected)
+  })
+
+  it('should fail with invalid response type', () => {
+    const res = fixture
+    const expected = formatError
+    const parsed = safeParseItemType(res)
+    expect(parsed).toStrictEqual(expected)
+  })
+
+  it('should fail when ListItemEntityTypeFullName missing', () => {
+    const res = JSON.stringify({ someprop: 'value' })
+    const expected = failure('GetContextWebInformation not in response')
+    const parsed = safeParseAuthToken(res)
+    expect(parsed).toStrictEqual(expected)
+  })
+
+  it('should fail with invalid JSON', () => {
+    const res = '{ListItemEntityTypeFullName: SP.Data.MyListItem'
+    const expected = failure(
+      'Unable to parse {ListItemEntityTypeFullName: SP.Data.MyListItem'
+    )
+    const parsed = safeParseAuthToken(res)
     expect(parsed).toStrictEqual(expected)
   })
 })

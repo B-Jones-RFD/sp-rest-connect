@@ -252,6 +252,14 @@ If using the actions directly call the factory method with a SiteConnectionOptio
 | listName | string | SharePoint list name    | Y        |
 | spId     | number | SharePoint list item ID | Y        |
 
+#### getListItemType(options)
+
+`options`
+
+| Property | Type   | Description          | Required |
+| -------- | ------ | -------------------- | -------- |
+| listName | string | SharePoint list name | Y        |
+
 #### updateListItem(options)
 
 `options`

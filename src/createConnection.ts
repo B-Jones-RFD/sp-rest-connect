@@ -12,5 +12,6 @@ export const createSiteConnection: SiteConnection = (options) => ({
   getFolderContents: methods.getFolderContents(options),
   getListContents: methods.getListContents(options),
   getListItem: methods.getListItem(options),
+  getListItemType: methods.getListItemType(options),
   updateListItem: methods.updateListItem(options),
 })

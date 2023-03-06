@@ -65,6 +65,7 @@ export type SiteConnection = (options: SiteConnectionOptions) => {
     unknown[]
   >
   getListItem: Action<{ listName: string; spId: number }, unknown>
+  getListItemType: Action<{ listName: string }, string>
   updateListItem: Action<
     {
       accessToken: string
