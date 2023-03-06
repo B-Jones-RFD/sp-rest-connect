@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.3.3
+
+### Patch Changes
+
+- 31baffb: Added action for getting item type for a list
+
 ## 0.3.2
 
 ### Patch Changes
