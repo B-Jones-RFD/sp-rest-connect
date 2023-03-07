@@ -2,8 +2,12 @@ import type { ActionFactory } from '../types'
 import os from 'os'
 import { get } from '../ntlm'
 import { safeParseResults } from '../utils'
+import { URLSearchParams } from 'url'
 
-export const getFolderContents: ActionFactory<{ folder: string }, unknown[]> =
+export const getFolderContents: ActionFactory<
+  { folder: string; params?: URLSearchParams },
+  unknown[]
+> =
   ({
     site,
     serverRelativeUrl,
@@ -13,10 +17,12 @@ export const getFolderContents: ActionFactory<{ folder: string }, unknown[]> =
     domain = '',
     hostname = os.hostname(),
   }) =>
-  async ({ folder }) => {
-    const url = `${protocol}://${
+  async ({ folder, params }) => {
+    const baseUrl = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/GetFolderByServerRelativeUrl('${serverRelativeUrl}/${folder}')/Files`
+    const query = params?.toString()
+    const url = query && query.length > 0 ? baseUrl + '?' + query : baseUrl
 
     const config = {
       url,
