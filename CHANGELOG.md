@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.3.5
+
+### Patch Changes
+
+- d3b627a: Added params option to getFolderContents
+
 ## 0.3.4
 
 ### Patch Changes
