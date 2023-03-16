@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.3.6
+
+### Patch Changes
+
+- b6a98ad: Added methods for checking folder exists and creating a folder in a document library
+
 ## 0.3.5
 
 ### Patch Changes
