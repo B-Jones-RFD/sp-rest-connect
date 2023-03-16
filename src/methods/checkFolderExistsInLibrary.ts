@@ -34,7 +34,6 @@ export const checkFolderExistsInLibrary: ActionFactory<
 
     try {
       const res = await get(config)
-      console.log('🚀 ~ file: checkFolderExistsInLibrary.ts:37 ~ res:', res)
       const results = safeParseFolderExists(res)
       return results
     } catch (error) {
