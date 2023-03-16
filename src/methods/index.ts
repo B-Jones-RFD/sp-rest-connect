@@ -1,6 +1,8 @@
 export { addAttachmentToListItem } from './addAttachmentToListItem'
 export { addDocumentToLibrary } from './addDocumentToLibrary'
 export { addListItem } from './addListItem'
+export { checkFolderExistsInLibrary } from './checkFolderExistsInLibrary'
+export { createFolderInLibrary } from './createFolderInLibrary'
 export { deleteDocumentFromLibrary } from './deleteDocumentFromLibrary'
 export { deleteListItem } from './deleteListItem'
 export { getAuthToken } from './getAuthToken'

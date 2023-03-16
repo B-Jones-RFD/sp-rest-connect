@@ -201,15 +201,32 @@ If using the actions directly call the factory method with a SiteConnectionOptio
 | listName    | string | SharePoint list name     | Y        |
 | payload     | string | List item JSON as string | Y        |
 
+#### checkFolderExistsInLibrary(options)
+
+`options`
+
+| Property | Type   | Description                      | Required |
+| -------- | ------ | -------------------------------- | -------- |
+| folder   | string | SharePoint folder/subfolder name | Y        |
+
+#### createFolderInLibrary(options)
+
+`options`
+
+| Property    | Type   | Description                      | Required |
+| ----------- | ------ | -------------------------------- | -------- |
+| accessToken | string | SharePoint access token          | Y        |
+| folder      | string | SharePoint folder/subfolder name | Y        |
+
 #### deleteDocumentFromLibrary(options)
 
 `options`
 
-| Property    | Type   | Description             | Required |
-| ----------- | ------ | ----------------------- | -------- |
-| accessToken | string | SharePoint access token | Y        |
-| folder      | string | SharePoint folder name  | Y        |
-| fileName    | string | File name               | Y        |
+| Property    | Type   | Description                      | Required |
+| ----------- | ------ | -------------------------------- | -------- |
+| accessToken | string | SharePoint access token          | Y        |
+| folder      | string | SharePoint folder/subfolder name | Y        |
+| fileName    | string | File name                        | Y        |
 
 #### deleteListItem(options)
 

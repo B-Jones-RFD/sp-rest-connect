@@ -41,6 +41,8 @@ export type SiteConnection = (options: SiteConnectionOptions) => {
     { accessToken: string; listName: string; payload: string },
     string
   >
+  checkFolderExistsInLibrary: Action<{ folder: string }, boolean>
+  createFolderInLibrary: Action<{ accessToken: string; folder: string }, string>
   deleteDocumentFromLibrary: Action<
     {
       accessToken: string

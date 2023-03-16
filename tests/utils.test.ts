@@ -10,6 +10,7 @@ import {
   safeParseId,
   safeParseServerUrl,
   safeParseItemType,
+  safeParseFolderExists,
 } from '../src/utils'
 
 describe('safeParseAuthToken', () => {
@@ -287,6 +288,47 @@ describe('safeParseItemType', () => {
       'Unable to parse {ListItemEntityTypeFullName: SP.Data.MyListItem'
     )
     const parsed = safeParseAuthToken(res)
+    expect(parsed).toStrictEqual(expected)
+  })
+})
+
+describe('safeParseFolderExists', () => {
+  const fixture = {
+    value: true,
+  }
+
+  it('should pass with correct data', () => {
+    const res = JSON.stringify(fixture)
+    const expected = success(true)
+    const parsed = safeParseFolderExists(res)
+    expect(parsed).toStrictEqual(expected)
+  })
+
+  it('should fail with invalid response type', () => {
+    const res = fixture
+    const expected = formatError
+    const parsed = safeParseFolderExists(res)
+    expect(parsed).toStrictEqual(expected)
+  })
+
+  it('should fail value not in response', () => {
+    const res = JSON.stringify({ prop: 'value' })
+    const expected = failure('Exists value not in response')
+    const parsed = safeParseFolderExists(res)
+    expect(parsed).toStrictEqual(expected)
+  })
+
+  it('should fail value is not boolean', () => {
+    const res = JSON.stringify({ value: 'value' })
+    const expected = failure('Invalid Exists type returned')
+    const parsed = safeParseFolderExists(res)
+    expect(parsed).toStrictEqual(expected)
+  })
+
+  it('should fail with invalid JSON', () => {
+    const res = '{d: 1'
+    const expected = failure('Unable to parse {d: 1')
+    const parsed = safeParseFolderExists(res)
     expect(parsed).toStrictEqual(expected)
   })
 })

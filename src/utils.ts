@@ -48,7 +48,7 @@ export function safeParseItemType(res: any): Result<string> {
   }
 }
 
-export function safeParseResults(res: any): Result<unknown[]> {
+export function safeParseResults<T>(res: any): Result<unknown[]> {
   if (typeof res !== 'string') return failure('Incorrect response format')
   try {
     const parsed = JSON.parse(res)
@@ -100,6 +100,20 @@ export function safeParseServerUrl(res: any): Result<string> {
     return typeof url === 'string'
       ? success(url)
       : failure('Invalid ServerRelativeUrl type returned')
+  } catch (error) {
+    return failure(`Unable to parse ${res}`)
+  }
+}
+
+export function safeParseFolderExists(res: any): Result<boolean> {
+  if (typeof res !== 'string') return failure('Incorrect response format')
+  try {
+    const parsed = JSON.parse(res)
+    if (!parsed.value) return failure('Exists value not in response')
+    const exists = parsed.value
+    return typeof exists === 'boolean'
+      ? success(exists)
+      : failure('Invalid Exists type returned')
   } catch (error) {
     return failure(`Unable to parse ${res}`)
   }

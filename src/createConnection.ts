@@ -5,6 +5,8 @@ export const createSiteConnection: SiteConnection = (options) => ({
   addAttachmentToListItem: methods.addAttachmentToListItem(options),
   addDocumentToLibrary: methods.addDocumentToLibrary(options),
   addListItem: methods.addListItem(options),
+  checkFolderExistsInLibrary: methods.checkFolderExistsInLibrary(options),
+  createFolderInLibrary: methods.createFolderInLibrary(options),
   deleteDocumentFromLibrary: methods.deleteDocumentFromLibrary(options),
   deleteListItem: methods.deleteListItem(options),
   getAuthToken: methods.getAuthToken(options),
