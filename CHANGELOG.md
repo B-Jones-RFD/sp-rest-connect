@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.4.0
+
+### Minor Changes
+
+- 8ef2325: Added folder exists and create actions
+
 ## 0.3.5
 
 ### Patch Changes
