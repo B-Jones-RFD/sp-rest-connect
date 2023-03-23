@@ -148,7 +148,7 @@ describe('safeParseResult', () => {
 })
 
 describe('safeParseDocument', () => {
-  const fixture = 'file content'
+  const fixture = Buffer.from('file content')
 
   it('should pass with correct data', () => {
     const res = fixture

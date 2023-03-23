@@ -5,7 +5,7 @@ import { safeParseDocument } from '../utils'
 
 export const getDocumentFromLibrary: ActionFactory<
   { folder: string; fileName: string },
-  string
+  Buffer
 > =
   ({
     site,
@@ -30,10 +30,12 @@ export const getDocumentFromLibrary: ActionFactory<
       headers: {
         Accept: 'application/json; odata=verbose',
       },
+      binary: true,
     }
 
     try {
       const res = await get(config)
+      console.log('🚀 ~ file: getDocumentFromLibrary.ts:38 ~ res:', res)
       const document = safeParseDocument(res)
       return document
     } catch (error) {
