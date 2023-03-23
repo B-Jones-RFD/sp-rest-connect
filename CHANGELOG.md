@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.4.0
+
+### Minor Changes
+
+- f1a4c6a: getDocumentFromLibrary returns binary data in Buffer
+
 ## 0.3.6
 
 ### Patch Changes
