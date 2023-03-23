@@ -3,13 +3,9 @@ lockfileVersion: 5.4
 specifiers:
   '@changesets/cli': ^2.26.0
   '@types/node': ^18.14.1
-  httpntlm: ^1.8.2
   tsup: ^6.6.3
   typescript: ^4.9.5
   vitest: ^0.28.5
-
-dependencies:
-  httpntlm: 1.8.2
 
 devDependencies:
   '@changesets/cli': 2.26.0
@@ -1557,19 +1553,6 @@ packages:
     resolution: {integrity: sha512-mxIDAb9Lsm6DoOJ7xH+5+X4y1LU/4Hi50L9C5sIswK3JzULS4bwk1FvjdBgvYR4bzT4tuUQiC15FE2f5HbLvYw==}
     dev: true
 
-  /httpntlm/1.8.2:
-    resolution: {integrity: sha512-ek0c3XzClBg6TOwYkwAgkD8P4XvVPdVu2gL6h3iW3HWhfGmI9FkhEe/wLNkJPEQ50iZkeOg44Jm3GQAb/P4znA==}
-    engines: {node: '>=10.4.0'}
-    dependencies:
-      httpreq: 0.5.2
-      underscore: 1.12.1
-    dev: false
-
-  /httpreq/0.5.2:
-    resolution: {integrity: sha512-2Jm+x9WkExDOeFRrdBCBSpLPT5SokTcRHkunV3pjKmX/cx6av8zQ0WtHUMDrYb6O4hBFzNU6sxJEypvRUVYKnw==}
-    engines: {node: '>= 6.15.1'}
-    dev: false
-
   /human-id/1.0.2:
     resolution: {integrity: sha512-UNopramDEhHJD+VR+ehk8rOslwSfByxPIZyJRfV739NDhN5LF1fa1MqnzKm2lGTQRjNrjK19Q5fhkgIfjlVUKw==}
     dev: true
@@ -2779,10 +2762,6 @@ packages:
       has-symbols: 1.0.3
       which-boxed-primitive: 1.0.2
     dev: true
-
-  /underscore/1.12.1:
-    resolution: {integrity: sha512-hEQt0+ZLDVUMhebKxL4x1BTtDY7bavVofhZ9KZ4aI26X9SRaE+Y3m83XUL1UP2jn8ynjndwCCpEHdUG+9pP1Tw==}
-    dev: false
 
   /universalify/0.1.2:
     resolution: {integrity: sha512-rBJeI5CXAlmy1pV+617WB9J63U6XcazHHF2f2dbJix4XzpUF0RS3Zbj0FGIOCAva5P/d/GBOYaACQ1w+0azUkg==}
