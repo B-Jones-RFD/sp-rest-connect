@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.4.1
+
+### Patch Changes
+
+- 47f017a: Removed logging
+
 ## 0.4.0
 
 ### Minor Changes
