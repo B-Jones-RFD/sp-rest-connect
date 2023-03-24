@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.4.1
+
+### Patch Changes
+
+- aeabde7: Moved httpnltm to peerDependency removed logging
+
 ## 0.4.0
 
 ### Minor Changes
