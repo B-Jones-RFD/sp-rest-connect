@@ -22,7 +22,7 @@ export type ActionFactory<TParams, TResponse> = (
   options: SiteConnectionOptions
 ) => Action<TParams, TResponse>
 
-export type SiteConnection = (options: SiteConnectionOptions) => {
+export type SiteConnection = {
   addAttachmentToListItem: Action<
     {
       accessToken: string
@@ -81,3 +81,7 @@ export type SiteConnection = (options: SiteConnectionOptions) => {
     string
   >
 }
+
+export type SiteConnectionFactory = (
+  options: SiteConnectionOptions
+) => SiteConnection

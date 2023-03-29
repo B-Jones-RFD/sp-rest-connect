@@ -1,7 +1,7 @@
-import type { SiteConnection } from './types'
+import type { SiteConnectionFactory } from './types'
 import * as methods from './methods'
 
-export const createSiteConnection: SiteConnection = (options) => ({
+export const createSiteConnection: SiteConnectionFactory = (options) => ({
   addAttachmentToListItem: methods.addAttachmentToListItem(options),
   addDocumentToLibrary: methods.addDocumentToLibrary(options),
   addListItem: methods.addListItem(options),
