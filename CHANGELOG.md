@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.4.2
+
+### Patch Changes
+
+- af08e1e: Resolved type issue with SiteConnection and factory function
+
 ## 0.4.1
 
 ### Patch Changes
