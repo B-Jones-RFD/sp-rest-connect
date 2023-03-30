@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.4.3
+
+### Patch Changes
+
+- 5b99e0d: Updated return type for addListItem to SP response
+
 ## 0.4.2
 
 ### Patch Changes
