@@ -28,7 +28,7 @@ export const addListItem: ActionFactory<
         workstation: hostname,
         domain,
         headers: {
-          Accept: 'application/json;odata=verbose',
+          Accept: 'application/json;odata=nometadata',
           'Content-Type': 'application/json;odata=verbose',
           'Content-Length': payload.length,
           'X-RequestDigest': accessToken,
@@ -36,10 +36,11 @@ export const addListItem: ActionFactory<
         body: payload,
       }
 
-      await post(config)
+      const result = await post(config)
+      const data = JSON.stringify(result, null, 2)
       return {
         success: true,
-        data: payload,
+        data,
       }
     } catch (error) {
       return {
