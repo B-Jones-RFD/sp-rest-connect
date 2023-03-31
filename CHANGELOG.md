@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.4.4
+
+### Patch Changes
+
+- 4d7c1ae: Export get and post methods
+
 ## 0.4.3
 
 ### Patch Changes
