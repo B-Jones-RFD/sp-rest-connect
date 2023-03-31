@@ -37,7 +37,7 @@ export const addListItem: ActionFactory<
       }
 
       const result = await post(config)
-      const data = JSON.stringify(result, null, 2)
+      const data = JSON.stringify(result)
       return {
         success: true,
         data,
