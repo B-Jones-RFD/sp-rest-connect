@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.4.6
+
+### Patch Changes
+
+- 7ea31ed: Stabilize peer dependency version
+
 ## 0.4.5
 
 ### Patch Changes
