@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.4.5
+
+### Patch Changes
+
+- f69e161: Resolve issue with addListItem return type
+
 ## 0.4.4
 
 ### Patch Changes
