@@ -1,6 +1,6 @@
 {
   "name": "@b-jones-rfd/sp-rest-connect",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Use SharePoint Rest Services to interact with lists and document libraries",
   "private": false,
   "main": "./dist/index.js",
