@@ -72,10 +72,10 @@ export function safeParseResult(res: any): Result<unknown> {
   }
 }
 
-export function safeParseDocument(res: any): Result<Buffer> {
-  return Buffer.isBuffer(res)
-    ? success(res)
-    : failure('Incorrect response format')
+export function safeParseDocument(
+  res: any
+): Result<ReadableStream<Uint8Array>> {
+  return res.next ? success(res) : failure('Incorrect response format')
 }
 
 export function safeParseId(res: any): Result<unknown[]> {

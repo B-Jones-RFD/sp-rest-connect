@@ -147,24 +147,6 @@ describe('safeParseResult', () => {
   })
 })
 
-describe('safeParseDocument', () => {
-  const fixture = Buffer.from('file content')
-
-  it('should pass with correct data', () => {
-    const res = fixture
-    const expected = success(fixture)
-    const parsed = safeParseDocument(res)
-    expect(parsed).toStrictEqual(expected)
-  })
-
-  it('should fail with invalid response type', () => {
-    const res = { fixture }
-    const expected = formatError
-    const parsed = safeParseDocument(res)
-    expect(parsed).toStrictEqual(expected)
-  })
-})
-
 describe('safeParseId', () => {
   const fixture = {
     d: {

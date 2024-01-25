@@ -5,7 +5,7 @@ import { safeParseDocument } from '../utils'
 
 export const getDocumentFromLibrary: ActionFactory<
   { folder: string; fileName: string },
-  Buffer
+  ReadableStream<Uint8Array>
 > =
   ({
     site,
