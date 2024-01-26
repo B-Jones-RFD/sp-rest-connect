@@ -2,11 +2,15 @@ import type { GetOptions, PostOptions } from 'httpntlm'
 import ntlm from 'httpntlm'
 
 export async function get(options: GetOptions) {
-  return new Promise<ReadableStream<Uint8Array>>((resolve, reject) => {
+  return new Promise<unknown>((resolve, reject) => {
     ntlm.get(options, (err, res) => {
       if (err) reject(err)
       if (res && res.body) {
-        resolve(res.body as ReadableStream<Uint8Array>)
+        if (res.statusCode === 200) {
+          resolve(res.body as unknown)
+        } else {
+          reject(new Error(res.body.toString()))
+        }
       } else {
         reject(new Error(`Get empty response: ${options.url}`))
       }

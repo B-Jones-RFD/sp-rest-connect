@@ -31,7 +31,8 @@ declare module 'httpntlm' {
   interface Response {
     headers: object
     statusCode: number
-    body: unknown
+    body: Buffer | unknown
+    cookies?: Array<String>
   }
 
   export function get(

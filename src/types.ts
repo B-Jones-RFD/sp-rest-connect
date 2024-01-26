@@ -60,10 +60,7 @@ export type SiteConnection = {
     string
   >
   getAuthToken: Action<void, string>
-  getDocumentFromLibrary: Action<
-    { folder: string; fileName: string },
-    ReadableStream<Uint8Array>
-  >
+  getDocumentFromLibrary: Action<{ folder: string; fileName: string }, Buffer>
   getFolderContents: Action<
     { folder: string; params?: URLSearchParams },
     unknown[]
