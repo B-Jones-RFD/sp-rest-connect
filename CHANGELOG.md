@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.4.7
+
+### Patch Changes
+
+- 15d2f44: Update return type for binary files
+
 ## 0.4.6
 
 ### Patch Changes
