@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.4.9
+
+### Patch Changes
+
+- f2244ef: Remove logging
+
 ## 0.4.8
 
 ### Patch Changes
