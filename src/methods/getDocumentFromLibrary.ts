@@ -35,7 +35,6 @@ export const getDocumentFromLibrary: ActionFactory<
 
     try {
       const res = await get(config)
-      console.log('🚀 ~ res:', res)
       const document = safeParseDocument(res)
       return document
     } catch (error) {
