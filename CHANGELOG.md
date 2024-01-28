@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.4.8
+
+### Patch Changes
+
+- 80b56bf: Revert type changes
+
 ## 0.4.7
 
 ### Patch Changes
