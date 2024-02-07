@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.5.0
+
+### Minor Changes
+
+- faec6db: Add option to get bearer token update FormDigestValue naming convention
+
 ## 0.4.9
 
 ### Patch Changes
