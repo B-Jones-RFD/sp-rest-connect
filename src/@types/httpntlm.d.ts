@@ -26,6 +26,14 @@ declare module 'httpntlm' {
     encodePostParameters?: boolean
   }
 
+  export interface AuthOptions {
+    url: string
+    username: string
+    password: string
+    workstation: string
+    domain: string
+  }
+
   export interface GetOptions extends Options {}
 
   interface Response {
@@ -44,4 +52,13 @@ declare module 'httpntlm' {
     config: PostOptions,
     callback: (error: Error, response: Response) => void
   ): void
+
+  export class ntlm {
+    static createType1Message: (options: AuthOptions) => string
+    static parseType2Message: (header: string | number) => string
+    static createType3Message: (
+      message: string | number,
+      options: AuthOptions
+    ) => string
+  }
 }

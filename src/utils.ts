@@ -14,7 +14,13 @@ export function failure(error: string): Failure {
   }
 }
 
-export function safeParseAuthToken(res: any): Result<string> {
+export function safeParseAuthToken(token: any): Result<string> {
+  return typeof token !== 'string'
+    ? failure('Incorrect token format')
+    : success(token)
+}
+
+export function safeParseFormDigestValue(res: any): Result<string> {
   if (typeof res !== 'string') return failure('Incorrect response format')
   try {
     const parsed = JSON.parse(res)

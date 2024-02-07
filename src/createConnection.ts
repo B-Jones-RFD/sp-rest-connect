@@ -10,6 +10,7 @@ export const createSiteConnection: SiteConnectionFactory = (options) => ({
   deleteDocumentFromLibrary: methods.deleteDocumentFromLibrary(options),
   deleteListItem: methods.deleteListItem(options),
   getAuthToken: methods.getAuthToken(options),
+  getFormDigestValue: methods.getFormDigestValue(options),
   getDocumentFromLibrary: methods.getDocumentFromLibrary(options),
   getFolderContents: methods.getFolderContents(options),
   getListContents: methods.getListContents(options),

@@ -65,6 +65,7 @@ export type SiteConnection = {
     { folder: string; params?: URLSearchParams },
     unknown[]
   >
+  getFormDigestValue: Action<void, string>
   getListContents: Action<
     { listName: string; params?: URLSearchParams },
     unknown[]

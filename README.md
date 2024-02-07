@@ -240,6 +240,8 @@ If using the actions directly call the factory method with a SiteConnectionOptio
 
 #### getAuthToken()
 
+#### getFormDigestValue()
+
 #### getDocumentFromLibrary(options)
 
 `options`

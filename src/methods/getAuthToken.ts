@@ -1,6 +1,6 @@
 import type { ActionFactory } from '../types'
 import os from 'os'
-import { post } from '../ntlm'
+import { auth } from '../ntlm'
 import { safeParseAuthToken } from '../utils'
 
 export const getAuthToken: ActionFactory<void, string> =
@@ -14,7 +14,7 @@ export const getAuthToken: ActionFactory<void, string> =
     hostname = os.hostname(),
   }) =>
   async () => {
-    const url = `${protocol}://${site + serverRelativeUrl}/_api/contextinfo`
+    const url = `${protocol}://${site + serverRelativeUrl}`
 
     const config = {
       url,
@@ -22,15 +22,10 @@ export const getAuthToken: ActionFactory<void, string> =
       password,
       workstation: hostname,
       domain,
-      headers: {
-        Accept: 'application/json;odata=verbose',
-        'Content-Type': 'application/json;odata=verbose',
-      },
-      body: '',
     }
 
     try {
-      const res = await post(config)
+      const res = await auth(config)
       const result = safeParseAuthToken(res)
       return result
     } catch (error) {

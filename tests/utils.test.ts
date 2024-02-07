@@ -4,6 +4,7 @@ import {
   success,
   failure,
   safeParseAuthToken,
+  safeParseFormDigestValue,
   safeParseResults,
   safeParseResult,
   safeParseDocument,
@@ -14,6 +15,24 @@ import {
 } from '../src/utils'
 
 describe('safeParseAuthToken', () => {
+  const fixture = 'NTLM testtokenvalue'
+
+  it('should pass with correct data', () => {
+    const res = fixture
+    const expected = success('NTLM testtokenvalue')
+    const parsed = safeParseAuthToken(res)
+    expect(parsed).toStrictEqual(expected)
+  })
+
+  it('should fail when token is incorrect type', () => {
+    const res = 1
+    const expected = failure('Incorrect token format')
+    const parsed = safeParseAuthToken(res)
+    expect(parsed).toStrictEqual(expected)
+  })
+})
+
+describe('safeParseFormDigestValue', () => {
   const fixture = {
     d: {
       GetContextWebInformation: {
@@ -25,21 +44,21 @@ describe('safeParseAuthToken', () => {
   it('should pass with correct data', () => {
     const res = JSON.stringify(fixture)
     const expected = success('testtokenvalue')
-    const parsed = safeParseAuthToken(res)
+    const parsed = safeParseFormDigestValue(res)
     expect(parsed).toStrictEqual(expected)
   })
 
   it('should fail with invalid response type', () => {
     const res = fixture
     const expected = formatError
-    const parsed = safeParseAuthToken(res)
+    const parsed = safeParseFormDigestValue(res)
     expect(parsed).toStrictEqual(expected)
   })
 
   it('should fail when GetContextWebInformation missing', () => {
     const res = JSON.stringify({ d: { someprop: 'value' } })
     const expected = failure('GetContextWebInformation not in response')
-    const parsed = safeParseAuthToken(res)
+    const parsed = safeParseFormDigestValue(res)
     expect(parsed).toStrictEqual(expected)
   })
 
@@ -52,7 +71,7 @@ describe('safeParseAuthToken', () => {
       },
     })
     const expected = failure('FormDigestValue not in response')
-    const parsed = safeParseAuthToken(res)
+    const parsed = safeParseFormDigestValue(res)
     expect(parsed).toStrictEqual(expected)
   })
 
@@ -65,14 +84,14 @@ describe('safeParseAuthToken', () => {
       },
     })
     const expected = failure('Access token not in response')
-    const parsed = safeParseAuthToken(res)
+    const parsed = safeParseFormDigestValue(res)
     expect(parsed).toStrictEqual(expected)
   })
 
   it('should fail with invalid JSON', () => {
     const res = '{d: 1'
     const expected = failure('Unable to parse {d: 1')
-    const parsed = safeParseAuthToken(res)
+    const parsed = safeParseFormDigestValue(res)
     expect(parsed).toStrictEqual(expected)
   })
 })
@@ -277,8 +296,8 @@ describe('safeParseItemType', () => {
 
   it('should fail when ListItemEntityTypeFullName missing', () => {
     const res = JSON.stringify({ someprop: 'value' })
-    const expected = failure('GetContextWebInformation not in response')
-    const parsed = safeParseAuthToken(res)
+    const expected = failure('ListItemEntityTypeFullName not in response')
+    const parsed = safeParseItemType(res)
     expect(parsed).toStrictEqual(expected)
   })
 
@@ -287,7 +306,7 @@ describe('safeParseItemType', () => {
     const expected = failure(
       'Unable to parse {ListItemEntityTypeFullName: SP.Data.MyListItem'
     )
-    const parsed = safeParseAuthToken(res)
+    const parsed = safeParseItemType(res)
     expect(parsed).toStrictEqual(expected)
   })
 })
