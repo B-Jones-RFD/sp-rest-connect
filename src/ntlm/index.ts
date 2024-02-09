@@ -33,7 +33,6 @@ export async function post(options: PostOptions) {
 }
 
 export async function auth(options: AuthOptions) {
-  console.log('🚀 ~ auth ~ options:', options)
   const type1msg = ntlm.createType1Message(options)
   return new Promise((resolve, reject) => {
     https.get(
