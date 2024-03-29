@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.5.2
+
+### Patch Changes
+
+- a475240: Improved error messaging
+
 ## 0.5.1
 
 ### Patch Changes
