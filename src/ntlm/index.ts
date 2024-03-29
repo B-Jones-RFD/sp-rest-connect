@@ -7,13 +7,9 @@ export async function get(options: GetOptions) {
     httpntlm.get(options, (err, res) => {
       if (err) reject(err)
       if (res && res.body) {
-        if (res.statusCode === 200) {
-          resolve(res.body as unknown)
-        } else {
-          reject(new Error(res.body.toString()))
-        }
-      } else {
-        reject(new Error(`Get empty response: ${options.url}`))
+        res.statusCode >= 200 && res.statusCode <= 299
+          ? resolve(res.body as unknown)
+          : reject(new Error(res.body.toString()))
       }
     })
   })
@@ -24,7 +20,9 @@ export async function post(options: PostOptions) {
     httpntlm.post(options, (err, res) => {
       if (err) reject(err)
       if (res && (res.body || res.body === '')) {
-        resolve(res.body)
+        res.statusCode >= 200 && res.statusCode <= 299
+          ? resolve(res.body)
+          : reject(new Error(res.body.toString()))
       } else {
         reject(new Error(`Post did not return response body: ${options.url}`))
       }

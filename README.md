@@ -1,20 +1,23 @@
+![GitHub Actions CI](https://github.com/B-Jones-RFD/sp-rest-connect/actions/workflows/main.yml/badge.svg)
+[![npm version](https://img.shields.io/npm/v/@b-jones-rfd/sp-rest-connect.svg?style=flat-square)](https://www.npmjs.com/package/@b-jones-rfd/sp-rest-connect)
+[![npm bundle size](https://img.shields.io/bundlephobia/min/%40b-jones-rfd%2Fsp-rest-connect)](https://bundlephobia.com/package/@b-jones-rfd/sp-rest-connect)
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
 
-# sp-rest-connect
+# Sharepoint REST Connect
 
 Use SharePoint Rest Services to interact with lists and document libraries. I got tired of rewriting these for work projects. Still building and not ready for use.
 
 ## Prerequisites
 
-This project requires NodeJS (version 16) and NPM.
+This project requires NodeJS and NPM.
 [Node](http://nodejs.org/) and [NPM](https://npmjs.org/) are really easy to install.
 To make sure you have them available on your machine,
 try running the following command.
 
 ```sh
 $ npm -v && node -v
-9.5.0
-v16.19.1
+10.2.4
+v20.11.1
 ```
 
 [PNPM] (https://pnpm.io/) is a awesome alternative to NPM and is recommended.
