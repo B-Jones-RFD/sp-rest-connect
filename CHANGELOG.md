@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 1.0.0
+
+### Major Changes
+
+- 0cd91e1: Move to stable
+
 ## 0.6.0
 
 ### Minor Changes
