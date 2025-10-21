@@ -8,6 +8,8 @@ export const updateListItem: ActionFactory<
     listName: string
     spId: number
     patch: string
+    timeout?: number
+    binary?: boolean
   },
   string
 > =
@@ -19,9 +21,8 @@ export const updateListItem: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-    ...optional
   }) =>
-  async ({ accessToken, listName, spId, patch }) => {
+  async ({ accessToken, listName, spId, patch, ...optional }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`

@@ -4,7 +4,14 @@ import { post } from '../ntlm'
 import { safeParseServerUrl } from '../utils'
 
 export const addDocumentToLibrary: ActionFactory<
-  { accessToken: string; folder: string; fileName: string; payload: Buffer },
+  {
+    accessToken: string
+    folder: string
+    fileName: string
+    payload: Buffer
+    timeout?: number
+    binary?: boolean
+  },
   string
 > =
   ({
@@ -15,9 +22,8 @@ export const addDocumentToLibrary: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-    ...optional
   }) =>
-  async ({ accessToken, folder, fileName, payload }) => {
+  async ({ accessToken, folder, fileName, payload, ...optional }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/GetFolderByServerRelativeUrl('${folder}')/Files/add(url='${fileName}',overwrite=true)`

@@ -3,7 +3,10 @@ import os from 'os'
 import { post } from '../ntlm'
 import { safeParseFormDigestValue } from '../utils'
 
-export const getFormDigestValue: ActionFactory<void, string> =
+export const getFormDigestValue: ActionFactory<
+  { timeout?: number; binary?: boolean },
+  string
+> =
   ({
     username,
     password,
@@ -12,9 +15,8 @@ export const getFormDigestValue: ActionFactory<void, string> =
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-    ...optional
   }) =>
-  async () => {
+  async (optional) => {
     const url = `${protocol}://${site + serverRelativeUrl}/_api/contextinfo`
 
     const config = {

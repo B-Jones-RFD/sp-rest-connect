@@ -4,7 +4,12 @@ import { get } from '../ntlm'
 import { safeParseResults } from '../utils'
 
 export const getListContents: ActionFactory<
-  { listName: string; params?: URLSearchParams },
+  {
+    listName: string
+    params?: URLSearchParams
+    timeout?: number
+    binary?: boolean
+  },
   unknown[]
 > =
   ({
@@ -15,9 +20,8 @@ export const getListContents: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-    ...optional
   }) =>
-  async ({ listName, params = undefined }) => {
+  async ({ listName, params = undefined, ...optional }) => {
     const baseUrl = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/lists/GetByTitle('${listName}')/items`

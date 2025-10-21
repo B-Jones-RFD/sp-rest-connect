@@ -3,7 +3,10 @@ import os from 'os'
 import { get } from '../ntlm'
 import { safeParseItemType } from '../utils'
 
-export const getListItemType: ActionFactory<{ listName: string }, string> =
+export const getListItemType: ActionFactory<
+  { listName: string; timeout?: number; binary?: boolean },
+  string
+> =
   ({
     username,
     password,
@@ -12,9 +15,8 @@ export const getListItemType: ActionFactory<{ listName: string }, string> =
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-    ...optional
   }) =>
-  async ({ listName }) => {
+  async ({ listName, ...optional }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/lists/GetByTitle('${listName}')?$select=ListItemEntityTypeFullName`

@@ -7,6 +7,8 @@ export const deleteDocumentFromLibrary: ActionFactory<
     accessToken: string
     folder: string
     fileName: string
+    timeout?: number
+    binary?: boolean
   },
   string
 > =
@@ -18,9 +20,8 @@ export const deleteDocumentFromLibrary: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-    ...optional
   }) =>
-  async ({ accessToken, folder, fileName }) => {
+  async ({ accessToken, folder, fileName, ...optional }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/GetFileByServerRelativeUrl('${serverRelativeUrl}/${folder}/${fileName}')`

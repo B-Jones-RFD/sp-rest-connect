@@ -159,18 +159,6 @@ async function getMyListUsingAction(listName: string) {
 | ------ | ------------- | ----------- | -------- |
 | string | os.hostname() | OS Hostname | N        |
 
-`timeout`
-
-| Type   | Default value | Description                        | Required |
-| ------ | ------------- | ---------------------------------- | -------- |
-| number | 0             | Connection timeout in milliseconds | N        |
-
-`binary`
-
-| Type    | Default value | Description               | Required |
-| ------- | ------------- | ------------------------- | -------- |
-| boolean | false         | Stream response as binary | N        |
-
 ### Actions
 
 SiteConnection instance action methods.
@@ -187,121 +175,159 @@ If using the actions directly call the factory method with a SiteConnectionOptio
 
 `options`
 
-| Property    | Type   | Description             | Required |
-| ----------- | ------ | ----------------------- | -------- |
-| accessToken | string | SharePoint access token | Y        |
-| listName    | string | SharePoint list name    | Y        |
-| spId        | number | SharePoint list item ID | Y        |
-| fileName    | string | File name               | Y        |
-| payload     | Buffer | File contents           | Y        |
+| Property    | Type    | Description                    | Required | Default |
+| ----------- | ------- | ------------------------------ | -------- | ------- |
+| accessToken | string  | SharePoint access token        | Y        |         |
+| listName    | string  | SharePoint list name           | Y        |         |
+| spId        | number  | SharePoint list item ID        | Y        |         |
+| fileName    | string  | File name                      | Y        |         |
+| payload     | Buffer  | File contents                  | Y        |         |
+| timeout     | number  | Request timeout (milliseconds) | N        | 0       |
+| binary      | boolean | Stream response                | N        | false   |
 
 #### addDocumentToLibrary(options)
 
 `options`
 
-| Property    | Type   | Description             | Required |
-| ----------- | ------ | ----------------------- | -------- |
-| accessToken | string | SharePoint access token | Y        |
-| folder      | string | SharePoint folder name  | Y        |
-| fileName    | string | File name               | Y        |
-| payload     | Buffer | File contents           | Y        |
+| Property    | Type    | Description                    | Required | Default |
+| ----------- | ------- | ------------------------------ | -------- | ------- |
+| accessToken | string  | SharePoint access token        | Y        |         |
+| folder      | string  | SharePoint folder name         | Y        |         |
+| fileName    | string  | File name                      | Y        |         |
+| payload     | Buffer  | File contents                  | Y        |         |
+| timeout     | number  | Request timeout (milliseconds) | N        | 0       |
+| binary      | boolean | Stream response                | N        | false   |
 
 #### addListItem(options)
 
 `options`
 
-| Property    | Type   | Description              | Required |
-| ----------- | ------ | ------------------------ | -------- |
-| accessToken | string | SharePoint access token  | Y        |
-| listName    | string | SharePoint list name     | Y        |
-| payload     | string | List item JSON as string | Y        |
+| Property    | Type    | Description                    | Required | Default |
+| ----------- | ------- | ------------------------------ | -------- | ------- |
+| accessToken | string  | SharePoint access token        | Y        |         |
+| listName    | string  | SharePoint list name           | Y        |         |
+| payload     | string  | List item JSON as string       | Y        |         |
+| timeout     | number  | Request timeout (milliseconds) | N        | 0       |
+| binary      | boolean | Stream response                | N        | false   |
 
 #### checkFolderExistsInLibrary(options)
 
 `options`
 
-| Property | Type   | Description                      | Required |
-| -------- | ------ | -------------------------------- | -------- |
-| folder   | string | SharePoint folder/subfolder name | Y        |
+| Property | Type    | Description                      | Required | Default |
+| -------- | ------- | -------------------------------- | -------- | ------- |
+| folder   | string  | SharePoint folder/subfolder name | Y        |         |
+| timeout  | number  | Request timeout (milliseconds)   | N        | 0       |
+| binary   | boolean | Stream response                  | N        | false   |
 
 #### createFolderInLibrary(options)
 
 `options`
 
-| Property    | Type   | Description                      | Required |
-| ----------- | ------ | -------------------------------- | -------- |
-| accessToken | string | SharePoint access token          | Y        |
-| folder      | string | SharePoint folder/subfolder name | Y        |
+| Property    | Type    | Description                      | Required | Default |
+| ----------- | ------- | -------------------------------- | -------- | ------- |
+| accessToken | string  | SharePoint access token          | Y        |         |
+| folder      | string  | SharePoint folder/subfolder name | Y        |         |
+| timeout     | number  | Request timeout (milliseconds)   | N        | 0       |
+| binary      | boolean | Stream response                  | N        | false   |
 
 #### deleteDocumentFromLibrary(options)
 
 `options`
 
-| Property    | Type   | Description                      | Required |
-| ----------- | ------ | -------------------------------- | -------- |
-| accessToken | string | SharePoint access token          | Y        |
-| folder      | string | SharePoint folder/subfolder name | Y        |
-| fileName    | string | File name                        | Y        |
+| Property    | Type    | Description                      | Required | Default |
+| ----------- | ------- | -------------------------------- | -------- | ------- |
+| accessToken | string  | SharePoint access token          | Y        |         |
+| folder      | string  | SharePoint folder/subfolder name | Y        |         |
+| fileName    | string  | File name                        | Y        |         |
+| timeout     | number  | Request timeout (milliseconds)   | N        | 0       |
+| binary      | boolean | Stream response                  | N        | false   |
 
 #### deleteListItem(options)
 
 `options`
 
-| Property    | Type   | Description             | Required |
-| ----------- | ------ | ----------------------- | -------- |
-| accessToken | string | SharePoint access token | Y        |
-| listName    | string | SharePoint list name    | Y        |
-| spId        | number | SharePoint list item ID | Y        |
+| Property    | Type    | Description                    | Required | Default |
+| ----------- | ------- | ------------------------------ | -------- | ------- |
+| accessToken | string  | SharePoint access token        | Y        |         |
+| listName    | string  | SharePoint list name           | Y        |         |
+| spId        | number  | SharePoint list item ID        | Y        |         |
+| timeout     | number  | Request timeout (milliseconds) | N        | 0       |
+| binary      | boolean | Stream response                | N        | false   |
 
 #### getAuthToken()
 
+`options`
+
+| Property | Type    | Description                    | Required | Default |
+| -------- | ------- | ------------------------------ | -------- | ------- |
+| timeout  | number  | Request timeout (milliseconds) | N        | 0       |
+| binary   | boolean | Stream response                | N        | false   |
+
 #### getFormDigestValue()
+
+`options`
+
+| Property | Type    | Description                    | Required | Default |
+| -------- | ------- | ------------------------------ | -------- | ------- |
+| timeout  | number  | Request timeout (milliseconds) | N        | 0       |
+| binary   | boolean | Stream response                | N        | false   |
 
 #### getDocumentFromLibrary(options)
 
 `options`
 
-| Property | Type   | Description            | Required |
-| -------- | ------ | ---------------------- | -------- |
-| folder   | string | SharePoint folder name | Y        |
-| fileName | string | File name              | Y        |
+| Property | Type    | Description                    | Required | Default |
+| -------- | ------- | ------------------------------ | -------- | ------- |
+| folder   | string  | SharePoint folder name         | Y        |         |
+| fileName | string  | File name                      | Y        |         |
+| timeout  | number  | Request timeout (milliseconds) | N        | 0       |
+| binary   | boolean | Stream response                | N        | true    |
 
 #### getListContents(options)
 
 `options`
 
-| Property | Type            | Description          | Required |
-| -------- | --------------- | -------------------- | -------- |
-| listName | string          | SharePoint list name | Y        |
-| params   | UrlSearchParams | SharePoint list name | N        |
+| Property | Type            | Description                    | Required | Default |
+| -------- | --------------- | ------------------------------ | -------- | ------- |
+| listName | string          | SharePoint list name           | Y        |         |
+| params   | UrlSearchParams | SharePoint list name           | N        |         |
+| timeout  | number          | Request timeout (milliseconds) | N        | 0       |
+| binary   | boolean         | Stream response                | N        | false   |
 
 #### getListItem(options)
 
 `options`
 
-| Property | Type   | Description             | Required |
-| -------- | ------ | ----------------------- | -------- |
-| listName | string | SharePoint list name    | Y        |
-| spId     | number | SharePoint list item ID | Y        |
+| Property | Type    | Description                    | Required | Default |
+| -------- | ------- | ------------------------------ | -------- | ------- |
+| listName | string  | SharePoint list name           | Y        |         |
+| spId     | number  | SharePoint list item ID        | Y        |         |
+| timeout  | number  | Request timeout (milliseconds) | N        | 0       |
+| binary   | boolean | Stream response                | N        | false   |
 
 #### getListItemType(options)
 
 `options`
 
-| Property | Type   | Description          | Required |
-| -------- | ------ | -------------------- | -------- |
-| listName | string | SharePoint list name | Y        |
+| Property | Type    | Description                    | Required | Default |
+| -------- | ------- | ------------------------------ | -------- | ------- |
+| listName | string  | SharePoint list name           | Y        |         |
+| timeout  | number  | Request timeout (milliseconds) | N        | 0       |
+| binary   | boolean | Stream response                | N        | false   |
 
 #### updateListItem(options)
 
 `options`
 
-| Property    | Type   | Description                      | Required |
-| ----------- | ------ | -------------------------------- | -------- |
-| accessToken | string | SharePoint access token          | Y        |
-| listName    | string | SharePoint list name             | Y        |
-| spId        | number | SharePoint list item ID          | Y        |
-| patch       | string | Updated list item JSON as string | Y        |
+| Property    | Type    | Description                      | Required | Default |
+| ----------- | ------- | -------------------------------- | -------- | ------- |
+| accessToken | string  | SharePoint access token          | Y        |         |
+| listName    | string  | SharePoint list name             | Y        |         |
+| spId        | number  | SharePoint list item ID          | Y        |         |
+| patch       | string  | Updated list item JSON as string | Y        |         |
+| timeout     | number  | Request timeout (milliseconds)   | N        | 0       |
+| binary      | boolean | Stream response                  | N        | false   |
 
 ## Responses
 

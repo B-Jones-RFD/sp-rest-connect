@@ -5,7 +5,12 @@ import { safeParseResults } from '../utils'
 import { URLSearchParams } from 'url'
 
 export const getFolderContents: ActionFactory<
-  { folder: string; params?: URLSearchParams },
+  {
+    folder: string
+    params?: URLSearchParams
+    timeout?: number
+    binary?: boolean
+  },
   unknown[]
 > =
   ({
@@ -16,9 +21,8 @@ export const getFolderContents: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-    ...optional
   }) =>
-  async ({ folder, params }) => {
+  async ({ folder, params, ...optional }) => {
     const baseUrl = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/GetFolderByServerRelativeUrl('${serverRelativeUrl}/${folder}')/Files`

@@ -4,7 +4,7 @@ import { get } from '../ntlm'
 import { safeParseResult } from '../utils'
 
 export const getListItem: ActionFactory<
-  { listName: string; spId: number },
+  { listName: string; spId: number; timeout?: number; binary?: boolean },
   unknown
 > =
   ({
@@ -15,9 +15,8 @@ export const getListItem: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-    ...optional
   }) =>
-  async ({ listName, spId }) => {
+  async ({ listName, spId, ...optional }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`

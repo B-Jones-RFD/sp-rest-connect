@@ -10,6 +10,8 @@ export const addAttachmentToListItem: ActionFactory<
     spId: number
     fileName: string
     payload: Buffer
+    timeout?: number
+    binary?: boolean
   },
   string
 > =
@@ -21,9 +23,8 @@ export const addAttachmentToListItem: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-    ...optional
   }) =>
-  async ({ accessToken, listName, spId, fileName, payload }) => {
+  async ({ accessToken, listName, spId, fileName, payload, ...optional }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')/AttachmentFiles/add(FileName='${fileName}')`

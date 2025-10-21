@@ -3,7 +3,13 @@ import os from 'os'
 import { post } from '../ntlm'
 
 export const addListItem: ActionFactory<
-  { accessToken: string; listName: string; payload: string },
+  {
+    accessToken: string
+    listName: string
+    payload: string
+    timeout?: number
+    binary?: boolean
+  },
   string
 > =
   ({
@@ -14,9 +20,8 @@ export const addListItem: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-    ...optional
   }) =>
-  async ({ accessToken, listName, payload }) => {
+  async ({ accessToken, listName, payload, ...optional }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/lists/GetByTitle('${listName}')/items`

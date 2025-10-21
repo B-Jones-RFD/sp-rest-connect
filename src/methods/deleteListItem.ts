@@ -7,6 +7,8 @@ export const deleteListItem: ActionFactory<
     accessToken: string
     listName: string
     spId: number
+    timeout?: number
+    binary?: boolean
   },
   string
 > =
@@ -18,9 +20,8 @@ export const deleteListItem: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-    ...optional
   }) =>
-  async ({ accessToken, listName, spId }) => {
+  async ({ accessToken, listName, spId, ...optional }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`

@@ -16,8 +16,6 @@ export type SiteConnectionOptions = {
   protocol?: 'https' | 'http'
   domain?: string | ''
   hostname?: string
-  timeout?: number
-  binary?: boolean
 }
 
 export type ActionFactory<TParams, TResponse> = (
@@ -32,24 +30,44 @@ export type SiteConnection = {
       spId: number
       fileName: string
       payload: Buffer
+      timeout?: number
+      binary?: boolean
     },
     string
   >
   addDocumentToLibrary: Action<
-    { accessToken: string; folder: string; fileName: string; payload: Buffer },
+    {
+      accessToken: string
+      folder: string
+      fileName: string
+      payload: Buffer
+      timeout?: number
+      binary?: boolean
+    },
     string
   >
   addListItem: Action<
-    { accessToken: string; listName: string; payload: string },
+    {
+      accessToken: string
+      listName: string
+      payload: string
+      timeout?: number
+      binary?: boolean
+    },
     string
   >
   checkFolderExistsInLibrary: Action<{ folder: string }, boolean>
-  createFolderInLibrary: Action<{ accessToken: string; folder: string }, string>
+  createFolderInLibrary: Action<
+    { accessToken: string; folder: string; timeout?: number; binary?: boolean },
+    string
+  >
   deleteDocumentFromLibrary: Action<
     {
       accessToken: string
       folder: string
       fileName: string
+      timeout?: number
+      binary?: boolean
     },
     string
   >
@@ -58,28 +76,51 @@ export type SiteConnection = {
       accessToken: string
       listName: string
       spId: number
+      timeout?: number
+      binary?: boolean
     },
     string
   >
-  getAuthToken: Action<void, string>
-  getDocumentFromLibrary: Action<{ folder: string; fileName: string }, Buffer>
+  getAuthToken: Action<{ timeout?: number; binary?: boolean }, string>
+  getDocumentFromLibrary: Action<
+    { folder: string; fileName: string; timeout?: number; binary?: boolean },
+    Buffer
+  >
   getFolderContents: Action<
-    { folder: string; params?: URLSearchParams },
+    {
+      folder: string
+      params?: URLSearchParams
+      timeout?: number
+      binary?: boolean
+    },
     unknown[]
   >
-  getFormDigestValue: Action<void, string>
+  getFormDigestValue: Action<{ timeout?: number; binary?: boolean }, string>
   getListContents: Action<
-    { listName: string; params?: URLSearchParams },
+    {
+      listName: string
+      params?: URLSearchParams
+      timeout?: number
+      binary?: boolean
+    },
     unknown[]
   >
-  getListItem: Action<{ listName: string; spId: number }, unknown>
-  getListItemType: Action<{ listName: string }, string>
+  getListItem: Action<
+    { listName: string; spId: number; timeout?: number; binary?: boolean },
+    unknown
+  >
+  getListItemType: Action<
+    { listName: string; timeout?: number; binary?: boolean },
+    string
+  >
   updateListItem: Action<
     {
       accessToken: string
       listName: string
       spId: number
       patch: string
+      timeout?: number
+      binary?: boolean
     },
     string
   >

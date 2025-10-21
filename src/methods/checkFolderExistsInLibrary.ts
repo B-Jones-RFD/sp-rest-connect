@@ -4,7 +4,7 @@ import { get } from '../ntlm'
 import { safeParseFolderExists } from '../utils'
 
 export const checkFolderExistsInLibrary: ActionFactory<
-  { folder: string },
+  { folder: string; timeout?: number; binary?: boolean },
   boolean
 > =
   ({
@@ -15,9 +15,8 @@ export const checkFolderExistsInLibrary: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-    ...optional
   }) =>
-  async ({ folder }) => {
+  async ({ folder, ...optional }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/GetFolderByServerRelativeUrl('${folder}')/Exists`

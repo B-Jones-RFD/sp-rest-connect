@@ -4,7 +4,7 @@ import { get } from '../ntlm'
 import { safeParseDocument } from '../utils'
 
 export const getDocumentFromLibrary: ActionFactory<
-  { folder: string; fileName: string },
+  { folder: string; fileName: string; timeout?: number; binary?: boolean },
   Buffer
 > =
   ({
@@ -15,9 +15,8 @@ export const getDocumentFromLibrary: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-    ...optional
   }) =>
-  async ({ folder, fileName }) => {
+  async ({ folder, fileName, binary = true, ...optional }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
     }/_api/web/GetFolderByServerRelativeUrl('${serverRelativeUrl}/${folder}')/Files('${fileName}')/$value`
@@ -31,7 +30,7 @@ export const getDocumentFromLibrary: ActionFactory<
       headers: {
         Accept: 'application/json; odata=verbose',
       },
-      binary: true,
+      binary,
       ...optional,
     }
 

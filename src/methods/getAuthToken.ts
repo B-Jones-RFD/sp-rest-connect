@@ -3,7 +3,10 @@ import os from 'os'
 import { auth } from '../ntlm'
 import { safeParseAuthToken } from '../utils'
 
-export const getAuthToken: ActionFactory<void, string> =
+export const getAuthToken: ActionFactory<
+  { timeout?: number; binary?: boolean },
+  string
+> =
   ({
     username,
     password,
@@ -12,9 +15,8 @@ export const getAuthToken: ActionFactory<void, string> =
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-    ...optional
   }) =>
-  async () => {
+  async (optional) => {
     const url = `${protocol}://${site + serverRelativeUrl}`
 
     const config = {

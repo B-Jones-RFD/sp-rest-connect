@@ -4,7 +4,7 @@ import { post } from '../ntlm'
 import { safeParseServerUrl } from '../utils'
 
 export const createFolderInLibrary: ActionFactory<
-  { accessToken: string; folder: string },
+  { accessToken: string; folder: string; timeout?: number; binary?: boolean },
   string
 > =
   ({
@@ -15,9 +15,8 @@ export const createFolderInLibrary: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
-    ...optional
   }) =>
-  async ({ accessToken, folder }) => {
+  async ({ accessToken, folder, ...optional }) => {
     const url = `${protocol}://${site + serverRelativeUrl}/_api/web/folders`
 
     const payload = JSON.stringify({
