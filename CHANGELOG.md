@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 0.6.0
+
+### Minor Changes
+
+- 8643fc7: Added support to set timeout and binary in configuration
+
 ## 0.5.2
 
 ### Patch Changes
