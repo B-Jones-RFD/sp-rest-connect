@@ -16,6 +16,7 @@ export const getFolderContents: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
+    ...optional
   }) =>
   async ({ folder, params }) => {
     const baseUrl = `${protocol}://${
@@ -33,6 +34,7 @@ export const getFolderContents: ActionFactory<
       headers: {
         Accept: 'application/json; odata=nometadata',
       },
+      ...optional,
     }
 
     try {

@@ -18,6 +18,7 @@ export const deleteListItem: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
+    ...optional
   }) =>
   async ({ accessToken, listName, spId }) => {
     const url = `${protocol}://${
@@ -39,6 +40,7 @@ export const deleteListItem: ActionFactory<
           'X-HTTP-Method': 'DELETE',
         },
         body: '',
+        ...optional,
       }
 
       await post(config)

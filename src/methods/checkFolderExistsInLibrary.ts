@@ -15,6 +15,7 @@ export const checkFolderExistsInLibrary: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
+    ...optional
   }) =>
   async ({ folder }) => {
     const url = `${protocol}://${
@@ -30,6 +31,7 @@ export const checkFolderExistsInLibrary: ActionFactory<
       headers: {
         Accept: 'application/json; odata=nometadata',
       },
+      ...optional,
     }
 
     try {

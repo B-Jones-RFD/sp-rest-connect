@@ -21,6 +21,7 @@ export const addAttachmentToListItem: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
+    ...optional
   }) =>
   async ({ accessToken, listName, spId, fileName, payload }) => {
     const url = `${protocol}://${
@@ -41,6 +42,7 @@ export const addAttachmentToListItem: ActionFactory<
           'X-RequestDigest': accessToken,
         },
         body: payload,
+        ...optional,
       }
       const res = await post(config)
       const result = safeParseServerUrl(res)

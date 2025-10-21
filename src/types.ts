@@ -16,6 +16,8 @@ export type SiteConnectionOptions = {
   protocol?: 'https' | 'http'
   domain?: string | ''
   hostname?: string
+  timeout?: number
+  binary?: boolean
 }
 
 export type ActionFactory<TParams, TResponse> = (

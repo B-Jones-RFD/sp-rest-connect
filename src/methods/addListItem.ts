@@ -14,6 +14,7 @@ export const addListItem: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
+    ...optional
   }) =>
   async ({ accessToken, listName, payload }) => {
     const url = `${protocol}://${
@@ -34,6 +35,7 @@ export const addListItem: ActionFactory<
           'X-RequestDigest': accessToken,
         },
         body: payload,
+        ...optional,
       }
 
       const result = await post(config)

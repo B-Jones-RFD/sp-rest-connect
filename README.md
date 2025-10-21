@@ -131,33 +131,45 @@ async function getMyListUsingAction(listName: string) {
 
 `site`
 
-| Type   | Description       | Example               |
-| ------ | ----------------- | --------------------- |
-| string | SharePoint domain | sharepoint.domain.com |
+| Type   | Description       | Example               | Required |
+| ------ | ----------------- | --------------------- | -------- |
+| string | SharePoint domain | sharepoint.domain.com | Y        |
 
 `serverRelativeUrl`
 
-| Type   | Description                  | Example          |
-| ------ | ---------------------------- | ---------------- |
-| string | SharePoint site relative Url | /path/to/my/site |
+| Type   | Description                  | Example          | Required |
+| ------ | ---------------------------- | ---------------- | -------- |
+| string | SharePoint site relative Url | /path/to/my/site | Y        |
 
 `protocol`
 
-| Type   | Default value | Options          | Description   |
-| ------ | ------------- | ---------------- | ------------- |
-| string | 'https'       | 'http' or 'http' | Site protocol |
+| Type   | Default value | Options          | Description   | Required |
+| ------ | ------------- | ---------------- | ------------- | -------- |
+| string | 'https'       | 'http' or 'http' | Site protocol | N        |
 
 `domain`
 
-| Type   | Default value | Description |
-| ------ | ------------- | ----------- |
-| string | ''            | NTLM domain |
+| Type   | Default value | Description | Required |
+| ------ | ------------- | ----------- | -------- |
+| string | ''            | NTLM domain | N        |
 
 `hostname`
 
-| Type   | Default value | Description |
-| ------ | ------------- | ----------- |
-| string | os.hostname() | OS Hostname |
+| Type   | Default value | Description | Required |
+| ------ | ------------- | ----------- | -------- |
+| string | os.hostname() | OS Hostname | N        |
+
+`timeout`
+
+| Type   | Default value | Description                        | Required |
+| ------ | ------------- | ---------------------------------- | -------- |
+| number | 0             | Connection timeout in milliseconds | N        |
+
+`binary`
+
+| Type    | Default value | Description               | Required |
+| ------- | ------------- | ------------------------- | -------- |
+| boolean | false         | Stream response as binary | N        |
 
 ### Actions
 

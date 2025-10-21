@@ -15,6 +15,7 @@ export const getDocumentFromLibrary: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
+    ...optional
   }) =>
   async ({ folder, fileName }) => {
     const url = `${protocol}://${
@@ -31,6 +32,7 @@ export const getDocumentFromLibrary: ActionFactory<
         Accept: 'application/json; odata=verbose',
       },
       binary: true,
+      ...optional,
     }
 
     try {

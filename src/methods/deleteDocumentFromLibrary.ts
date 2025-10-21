@@ -18,6 +18,7 @@ export const deleteDocumentFromLibrary: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
+    ...optional
   }) =>
   async ({ accessToken, folder, fileName }) => {
     const url = `${protocol}://${
@@ -35,6 +36,7 @@ export const deleteDocumentFromLibrary: ActionFactory<
         'If-Match': '*',
         'X-HTTP-Method': 'DELETE',
       },
+      ...optional,
     }
 
     try {

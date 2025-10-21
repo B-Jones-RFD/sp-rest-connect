@@ -19,6 +19,7 @@ export const updateListItem: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
+    ...optional
   }) =>
   async ({ accessToken, listName, spId, patch }) => {
     const url = `${protocol}://${
@@ -41,6 +42,7 @@ export const updateListItem: ActionFactory<
           'X-HTTP-Method': 'MERGE',
         },
         body: patch,
+        ...optional,
       }
 
       await post(config)

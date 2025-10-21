@@ -12,6 +12,7 @@ export const getAuthToken: ActionFactory<void, string> =
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
+    ...optional
   }) =>
   async () => {
     const url = `${protocol}://${site + serverRelativeUrl}`
@@ -22,6 +23,7 @@ export const getAuthToken: ActionFactory<void, string> =
       password,
       workstation: hostname,
       domain,
+      ...optional,
     }
 
     try {

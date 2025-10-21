@@ -15,6 +15,7 @@ export const createFolderInLibrary: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
+    ...optional
   }) =>
   async ({ accessToken, folder }) => {
     const url = `${protocol}://${site + serverRelativeUrl}/_api/web/folders`
@@ -37,6 +38,7 @@ export const createFolderInLibrary: ActionFactory<
           'X-RequestDigest': accessToken,
         },
         body: payload,
+        ...optional,
       }
       const res = await post(config)
       const result = safeParseServerUrl(res)

@@ -15,6 +15,7 @@ export const addDocumentToLibrary: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
+    ...optional
   }) =>
   async ({ accessToken, folder, fileName, payload }) => {
     const url = `${protocol}://${
@@ -35,6 +36,7 @@ export const addDocumentToLibrary: ActionFactory<
           'X-RequestDigest': accessToken,
         },
         body: payload,
+        ...optional,
       }
       const res = await post(config)
       const result = safeParseServerUrl(res)

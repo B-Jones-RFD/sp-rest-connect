@@ -15,6 +15,7 @@ export const getListItem: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
+    ...optional
   }) =>
   async ({ listName, spId }) => {
     const url = `${protocol}://${
@@ -30,6 +31,7 @@ export const getListItem: ActionFactory<
       headers: {
         Accept: 'application/json; odata=nometadata',
       },
+      ...optional,
     }
 
     try {

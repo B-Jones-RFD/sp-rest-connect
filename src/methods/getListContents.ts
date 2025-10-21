@@ -15,6 +15,7 @@ export const getListContents: ActionFactory<
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
+    ...optional
   }) =>
   async ({ listName, params = undefined }) => {
     const baseUrl = `${protocol}://${
@@ -32,6 +33,7 @@ export const getListContents: ActionFactory<
       headers: {
         Accept: 'application/json; odata=nometadata',
       },
+      ...optional,
     }
 
     try {

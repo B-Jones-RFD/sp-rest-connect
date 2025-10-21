@@ -12,6 +12,7 @@ export const getFormDigestValue: ActionFactory<void, string> =
     protocol = 'https',
     domain = '',
     hostname = os.hostname(),
+    ...optional
   }) =>
   async () => {
     const url = `${protocol}://${site + serverRelativeUrl}/_api/contextinfo`
@@ -27,6 +28,7 @@ export const getFormDigestValue: ActionFactory<void, string> =
         'Content-Type': 'application/json;odata=verbose',
       },
       body: '',
+      ...optional,
     }
 
     try {
