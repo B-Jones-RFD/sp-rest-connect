@@ -56,7 +56,10 @@ export type SiteConnection = {
     },
     string
   >
-  checkFolderExistsInLibrary: Action<{ folder: string }, boolean>
+  checkFolderExistsInLibrary: Action<
+    { folder: string; timeout?: number; binary?: boolean },
+    boolean
+  >
   createFolderInLibrary: Action<
     { accessToken: string; folder: string; timeout?: number; binary?: boolean },
     string
