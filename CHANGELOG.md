@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 1.0.1
+
+### Patch Changes
+
+- 4ddb1a3: Resolve type error
+
 ## 1.0.0
 
 ### Major Changes
