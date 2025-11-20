@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 1.0.2
+
+### Patch Changes
+
+- 1e63f4b: Configure trusted publishing
+
 ## 1.0.1
 
 ### Patch Changes
