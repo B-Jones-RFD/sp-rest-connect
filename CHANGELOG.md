@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 1.0.4
+
+### Patch Changes
+
+- 50c400e: Further publish tests
+
 ## 1.0.3
 
 ### Patch Changes
