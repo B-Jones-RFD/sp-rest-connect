@@ -1,6 +1,6 @@
 {
   "name": "@b-jones-rfd/sp-rest-connect",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Use SharePoint Rest Services to interact with lists and document libraries",
   "private": false,
   "main": "./dist/index.js",
@@ -24,7 +24,7 @@
   "publishConfig": {
     "access": "public"
   },
-   "repository": {
+  "repository": {
     "type": "git",
     "url": "git+https://github.com/B-Jones-RFD/sp-rest-connect.git"
   },
