@@ -12,11 +12,21 @@
     "build": "tsup src/index.ts --format cjs,esm --dts",
     "lint": "tsc",
     "ci": "pnpm run lint && pnpm run test && pnpm run build",
-    "release": "pnpm run lint && pnpm run test && pnpm run build && changeset publish --access public"
+    "release": "pnpm run build && pnpm publish -r --no-git-checks"
   },
   "keywords": [],
   "author": "B-Jones-RFD",
   "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+   "repository": {
+    "type": "git",
+    "url": "git+https://github.com/B-Jones-RFD/sp-rest-connect.git"
+  },
   "devDependencies": {
     "@changesets/cli": "^2.26.0",
     "@types/node": "^18.14.1",
@@ -26,12 +36,5 @@
   },
   "peerDependencies": {
     "httpntlm": "1.8.13"
-  },
-  "engines": {
-    "node": ">=18"
-  },
-  "publishConfig": {
-    "provenance": true,
-    "access": "public"
   }
 }
