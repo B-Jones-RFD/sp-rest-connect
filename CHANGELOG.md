@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 1.0.6
+
+### Patch Changes
+
+- 7bca87d: Fix deployments
+
 ## 1.0.5
 
 ### Patch Changes
