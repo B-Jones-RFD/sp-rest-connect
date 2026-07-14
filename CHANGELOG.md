@@ -1,5 +1,11 @@
 # @b-jones-rfd/npm-rest-connect
 
+## 1.0.7
+
+### Patch Changes
+
+- 22017f7: remove node version locks
+
 ## 1.0.6
 
 ### Patch Changes
