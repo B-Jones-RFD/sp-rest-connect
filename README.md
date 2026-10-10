@@ -22,6 +22,18 @@ v20.11.1
 
 [PNPM](https://pnpm.io/) is an awesome alternative to NPM and is recommended.
 
+Node 22 or later is required. The package has **no runtime dependencies**: NTLM
+authentication is implemented in-house on top of `node:http`/`node:https` and
+`node:crypto`.
+
+### Authentication
+
+Only **NTLMv2** is supported. SharePoint servers that negotiate extended
+security (SharePoint 2013 and later by default) send the target information
+NTLMv2 requires. If a server responds without it, requests fail with
+`NTLM server did not send target info` rather than silently downgrading to
+NTLMv1, which is both insecure and unavailable in Node's OpenSSL 3 build.
+
 ## Table of contents
 
 - [SharePoint REST Connect](#sharepoint-rest-connect)

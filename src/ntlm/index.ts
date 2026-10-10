@@ -1,58 +1,58 @@
-import type { GetOptions, PostOptions, AuthOptions } from 'httpntlm'
 import http from 'node:http'
 import https from 'node:https'
-import httpntlm, { ntlm } from 'httpntlm'
+import {
+  createType1Message,
+  createType3Message,
+  parseType2Message,
+  type NtlmCredentials,
+} from './messages'
+import { request, type NtlmRequestOptions } from './request'
 
-export async function get(options: GetOptions) {
-  return new Promise<unknown>((resolve, reject) => {
-    httpntlm.get(options, (err, res) => {
-      if (err) return reject(err)
-      if (res && (res.body || res.body === '')) {
-        res.statusCode >= 200 && res.statusCode <= 299
-          ? resolve(res.body as unknown)
-          : reject(new Error(String(res.body)))
-      } else {
-        reject(new Error(`Get did not return response body: ${options.url}`))
-      }
-    })
+export type { NtlmRequestOptions } from './request'
+export type GetOptions = NtlmRequestOptions
+export type PostOptions = NtlmRequestOptions
+export type AuthOptions = NtlmCredentials & { url: string }
+
+function unwrap(
+  method: string,
+  options: NtlmRequestOptions
+): Promise<unknown> {
+  return request(method as 'GET' | 'POST', options).then((res) => {
+    if (res.statusCode >= 200 && res.statusCode <= 299) return res.body
+    throw new Error(String(res.body))
   })
 }
 
-export async function post(options: PostOptions) {
-  return new Promise((resolve, reject) => {
-    httpntlm.post(options, (err, res) => {
-      if (err) return reject(err)
-      if (res && (res.body || res.body === '')) {
-        res.statusCode >= 200 && res.statusCode <= 299
-          ? resolve(res.body)
-          : reject(new Error(String(res.body)))
-      } else {
-        reject(new Error(`Post did not return response body: ${options.url}`))
-      }
-    })
-  })
+export async function get(options: GetOptions): Promise<unknown> {
+  return unwrap('GET', options)
 }
 
-export async function auth(options: AuthOptions) {
-  const type1msg = ntlm.createType1Message(options)
+export async function post(options: PostOptions): Promise<unknown> {
+  return unwrap('POST', options)
+}
+
+/**
+ * Perform the NTLM negotiate leg against `url` and return the resulting
+ * Type 3 `Authorization` header value.
+ */
+export async function auth(options: AuthOptions): Promise<string> {
+  const type1msg = createType1Message(options)
   const client = options.url.startsWith('http:') ? http : https
-  return new Promise((resolve, reject) => {
+  return new Promise<string>((resolve, reject) => {
     const req = client.get(
       options.url,
-      {
-        headers: {
-          Authorization: type1msg,
-        },
-      },
+      { headers: { Authorization: type1msg } },
       (res) => {
         res.resume()
-        const headers = res.headers
-        if (headers['www-authenticate']) {
-          const type2msg = ntlm.parseType2Message(headers['www-authenticate'])
-          const type3msg = ntlm.createType3Message(type2msg, options)
-          resolve(type3msg)
-        } else {
-          reject(new Error('Auth response missing www-authenticate header'))
+        const header = res.headers['www-authenticate']
+        if (!header) {
+          return reject(new Error('Auth response missing www-authenticate header'))
+        }
+        try {
+          const type2msg = parseType2Message(header)
+          resolve(createType3Message(type2msg, options))
+        } catch (error) {
+          reject(error)
         }
       }
     )
