@@ -1,5 +1,11 @@
 # @b-jones-rfd/sp-rest-connect
 
+## 4.3.0
+
+### Minor Changes
+
+- f4d50fe: Managed request digest, object payloads, and streaming uploads/downloads.- **`requestDigest` is now optional on every write.** When omitted, the connection fetches a digest, caches it until a minute before SharePoint says it expires, shares one fetch between concurrent writes, and on a 403 refreshes it and retries the write once. Pass `requestDigest` to bypass the cache. Standalone factories accept a `ConnectionContext` (from the new `createConnectionContext`) as a second argument to share the cache.- **`addListItem.payload` and `updateListItem.patch` accept plain objects.** The list's entity type is looked up once per list and cached; include `__metadata.type` yourself to skip the lookup. The JSON-string form still works but is deprecated and will be removed in 5.0.- **Streams.** `addDocumentToLibrary` accepts a `Readable` as `payload` (plus optional `contentLength`; chunked otherwise). New `getDocumentStreamFromLibrary` returns a `Readable` instead of a `Buffer`. A stream upload is not retried on a stale managed digest.- New exports: `createConnectionContext`, `getDocumentStreamFromLibrary`, and types `ConnectionContext`, `DigestCache`, `EntityTypeCache`, `ListItemPayload`, `GetDocumentStreamFromLibraryOptions`.- Quick start and examples simplified accordingly.
+
 ## 4.2.0
 
 ### Minor Changes
