@@ -205,7 +205,7 @@ describe('getAuthToken', () => {
       })
       await expect(sp.getAuthToken({})).resolves.toStrictEqual(
         failure(
-          'Error in getAuthToken: Error: Auth response missing www-authenticate header'
+          'Error in getAuthToken: Error: Server did not issue an NTLM challenge (HTTP 200)'
         )
       )
     } finally {

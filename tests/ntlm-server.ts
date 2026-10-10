@@ -81,7 +81,12 @@ function ntlmMessageType(authorization?: string): number | null {
 
 export async function startNtlmServer(
   handler: AuthenticatedHandler,
-  opts: { type2?: string; challengeHeader?: string } = {}
+  opts: {
+    type2?: string
+    challengeHeader?: string
+    /** Serve every request without demanding NTLM (no 401 challenge). */
+    anonymous?: boolean
+  } = {}
 ): Promise<NtlmTestServer> {
   const type2 =
     opts.type2 ?? buildType2({ flags: V2_FLAGS, targetInfo: TARGET_INFO })
@@ -108,7 +113,7 @@ export async function startNtlmServer(
       }
       requests.push(seen)
 
-      if (seen.ntlmType === 3) {
+      if (seen.ntlmType === 3 || opts.anonymous) {
         handler(seen, res)
       } else {
         res.statusCode = 401

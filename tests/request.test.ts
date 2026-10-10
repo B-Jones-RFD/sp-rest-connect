@@ -1,4 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
+import http from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { request } from '../src/ntlm/request'
 import { get, post, auth } from '../src/ntlm'
 import {
@@ -170,5 +172,31 @@ describe('get / post / auth wrappers', () => {
     expect(buf.readUInt32LE(8)).toBe(3)
     expect(server.requests).toHaveLength(1)
     expect(server.requests[0].ntlmType).toBe(1)
+  })
+
+  it('auth rejects when the server does not issue an NTLM challenge', async () => {
+    server = await startNtlmServer((_req, res) => res.end('ok'), {
+      anonymous: true,
+    })
+    await expect(auth({ ...creds, url: `${server.url}/` })).rejects.toThrow(
+      /did not issue an NTLM challenge \(HTTP 200\)/
+    )
+  })
+
+  it('auth honours timeout', async () => {
+    // auth() only sends leg 1, so the server must stall before challenging.
+    const silent = http.createServer(() => {
+      /* never respond */
+    })
+    await new Promise<void>((r) => silent.listen(0, '127.0.0.1', r))
+    const { port } = silent.address() as AddressInfo
+    try {
+      await expect(
+        auth({ ...creds, url: `http://127.0.0.1:${port}/slow`, timeout: 200 })
+      ).rejects.toThrow(/timed out after 200ms/)
+    } finally {
+      silent.closeAllConnections()
+      await new Promise<void>((r) => silent.close(() => r()))
+    }
   })
 })
