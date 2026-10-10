@@ -6,21 +6,22 @@ import type {
 } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
-import { encodePath, odataPath } from '../utils'
+import { encodePath, odataPath, success } from '../utils'
 import { toFailure } from '../errors'
+import { createConnectionContext, withDigest } from '../context'
 
 /**
- * Deletes a file from a document library. Returns the deleted file name.
+ * Deletes a file from a document library. Returns the deleted `fileName`.
  *
- * Factory form of {@link SiteConnection.deleteDocumentFromLibrary}: call with your
- * {@link SiteConnectionOptions} to get a reusable action. See the
+ * Factory form of {@link SiteConnection.deleteDocumentFromLibrary}: call
+ * with your {@link SiteConnectionOptions} to get a reusable action. See the
  * `SiteConnection` member for full parameter and return documentation.
  */
 export const deleteDocumentFromLibrary: ActionFactory<
   DeleteDocumentFromLibraryOptions,
   string
-> =
-  ({
+> = (options, context = createConnectionContext(options)) => {
+  const {
     site,
     serverRelativeUrl,
     username,
@@ -29,34 +30,44 @@ export const deleteDocumentFromLibrary: ActionFactory<
     domain = '',
     agentOptions,
     hostname = os.hostname(),
-  }) =>
-  async ({ accessToken, requestDigest, folder, fileName, ...optional }) => {
+  } = options
+  return async ({
+    accessToken,
+    requestDigest,
+    folder,
+    fileName,
+    ...optional
+  }) => {
     const url = `${protocol}://${
       site + encodePath(serverRelativeUrl)
     }/_api/web/GetFileByServerRelativeUrl('${odataPath(`${serverRelativeUrl}/${folder}/${fileName}`)}')`
 
-    const config = {
-      url,
-      username,
-      password,
-      workstation: hostname,
-      domain,
-      agentOptions,
-      headers: {
-        'X-RequestDigest': requestDigest ?? accessToken,
-        'If-Match': '*',
-        'X-HTTP-Method': 'DELETE',
-      },
-      ...optional,
-    }
-
-    try {
-      await post(config)
-      return {
-        success: true,
-        data: fileName,
+    return withDigest(
+      'deleteDocumentFromLibrary',
+      context,
+      requestDigest ?? accessToken,
+      optional,
+      async (digest) => {
+        try {
+          await post({
+            url,
+            username,
+            password,
+            workstation: hostname,
+            domain,
+            agentOptions,
+            headers: {
+              'X-RequestDigest': digest,
+              'If-Match': '*',
+              'X-HTTP-Method': 'DELETE',
+            },
+            ...optional,
+          })
+          return success(fileName)
+        } catch (error) {
+          return toFailure('deleteDocumentFromLibrary', error)
+        }
       }
-    } catch (error) {
-      return toFailure('deleteDocumentFromLibrary', error)
-    }
+    )
   }
+}

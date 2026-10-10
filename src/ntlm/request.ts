@@ -8,7 +8,12 @@
  */
 import http from 'node:http'
 import https from 'node:https'
-import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'node:http'
+import type {
+  IncomingHttpHeaders,
+  IncomingMessage,
+  OutgoingHttpHeaders,
+} from 'node:http'
+import { Readable } from 'node:stream'
 import {
   createType1Message,
   createType3Message,
@@ -20,9 +25,16 @@ import {
 export interface NtlmRequestOptions extends NtlmCredentials {
   url: string
   headers?: Record<string, string | number>
-  body?: string | Buffer
+  /** Request body. A `Readable` is piped (chunked unless a Content-Length header is supplied) and can only be sent once. */
+  body?: string | Buffer | Readable
   /** Return the response body as a Buffer instead of a UTF-8 string. */
   binary?: boolean
+  /**
+   * Return a 2xx response body as a `Readable` instead of buffering it. Non-2xx
+   * bodies are still buffered so errors can be reported. The socket is released
+   * when the stream closes.
+   */
+  stream?: boolean
   /** Socket inactivity timeout in milliseconds. */
   timeout?: number
   /** Cancels the request; rejects with an `AbortError`. */
@@ -40,13 +52,15 @@ export class TimeoutError extends Error {
 export interface NtlmResponse {
   statusCode: number
   headers: IncomingHttpHeaders
-  body: string | Buffer
+  body: string | Buffer | Readable
 }
 
 interface RawResponse {
   statusCode: number
   headers: IncomingHttpHeaders
   body: Buffer
+  /** Set instead of `body` when streaming a 2xx response. */
+  stream?: IncomingMessage
 }
 
 /** Headers managed by the handshake; caller-supplied copies are dropped. */
@@ -73,19 +87,24 @@ function send(
   agent: http.Agent,
   method: string,
   headers: OutgoingHttpHeaders,
-  body: string | Buffer | undefined,
+  body: string | Buffer | Readable | undefined,
   timeout: number | undefined,
-  signal: AbortSignal | undefined
+  signal: AbortSignal | undefined,
+  streamResponse = false
 ): Promise<RawResponse> {
   return new Promise((resolve, reject) => {
     const payload =
-      body === undefined
-        ? undefined
+      body === undefined || body instanceof Readable
+        ? body
         : Buffer.isBuffer(body)
           ? body
           : Buffer.from(body, 'utf8')
 
-    if (!hasHeader(headers, 'content-length')) {
+    // A Readable without a known length goes out chunked.
+    if (
+      !(payload instanceof Readable) &&
+      !hasHeader(headers, 'content-length')
+    ) {
       headers['Content-Length'] = payload ? payload.length : 0
     }
 
@@ -93,12 +112,22 @@ function send(
       url,
       { method, headers, agent, signal },
       (res) => {
+        const statusCode = res.statusCode ?? 0
+        if (streamResponse && statusCode >= 200 && statusCode <= 299) {
+          resolve({
+            statusCode,
+            headers: res.headers,
+            body: Buffer.alloc(0),
+            stream: res,
+          })
+          return
+        }
         const chunks: Buffer[] = []
         res.on('data', (chunk: Buffer) => chunks.push(chunk))
         res.on('error', reject)
         res.on('end', () =>
           resolve({
-            statusCode: res.statusCode ?? 0,
+            statusCode,
             headers: res.headers,
             body: Buffer.concat(chunks),
           })
@@ -115,7 +144,12 @@ function send(
     }
 
     req.on('error', reject)
-    req.end(payload)
+    if (payload instanceof Readable) {
+      payload.once('error', (err) => req.destroy(err))
+      payload.pipe(req)
+    } else {
+      req.end(payload)
+    }
   })
 }
 
@@ -189,6 +223,7 @@ export async function request(
   options: NtlmRequestOptions
 ): Promise<NtlmResponse> {
   const session = openSession(options)
+  let streaming = false
 
   try {
     // Leg 1: negotiate. No body; the real payload only goes with Type 3.
@@ -215,8 +250,21 @@ export async function request(
         },
         options.body,
         options.timeout,
-        options.signal
+        options.signal,
+        options.stream
       )
+    }
+
+    if (final.stream) {
+      // Hand the socket's lifetime to the consumer; release it when done.
+      streaming = true
+      const agent = session.agent
+      final.stream.once('close', () => agent.destroy())
+      return {
+        statusCode: final.statusCode,
+        headers: final.headers,
+        body: final.stream,
+      }
     }
 
     return {
@@ -225,7 +273,7 @@ export async function request(
       body: options.binary ? final.body : final.body.toString('utf8'),
     }
   } finally {
-    session.agent.destroy()
+    if (!streaming) session.agent.destroy()
   }
 }
 

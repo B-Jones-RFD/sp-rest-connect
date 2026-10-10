@@ -4,6 +4,10 @@
  */
 import { createSiteConnection, getListContents } from '../src'
 import type { SiteConnectionOptions } from '../src'
+import { createReadStream, createWriteStream } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import { basename } from 'node:path'
+import { pipeline } from 'node:stream/promises'
 
 const siteConnectionOptions: SiteConnectionOptions = {
   username: 'jsmith',
@@ -35,33 +39,43 @@ export async function getMyListAlt(listName: string) {
   throw new Error(contents.error)
 }
 
-// Writing: entity type + request digest, then create
+// Writing: the connection fetches and caches the request digest and the
+// list's entity type for you.
 export async function createTask(title: string) {
-  const [type, digest] = await Promise.all([
-    connection.getListItemType({ listName: 'Tasks' }),
-    connection.getFormDigestValue({}),
-  ])
-  if (!type.success) throw new Error(type.error)
-  if (!digest.success) throw new Error(digest.error)
-
   const created = await connection.addListItem({
-    requestDigest: digest.data,
     listName: 'Tasks',
-    payload: JSON.stringify({ __metadata: { type: type.data }, Title: title }),
+    payload: { Title: title },
   })
   if (!created.success) throw new Error(created.error)
   return JSON.parse(created.data) as { Id: number; Title: string }
 }
 
-// Uploading a document
+// Uploading a document from memory
 export async function uploadReport(fileName: string, contents: Buffer) {
-  const digest = await connection.getFormDigestValue({})
-  if (!digest.success) throw new Error(digest.error)
-
   return connection.addDocumentToLibrary({
-    requestDigest: digest.data,
     folder: 'Shared Documents/Reports',
     fileName,
     payload: contents,
   })
+}
+
+// Uploading a large file without buffering it
+export async function uploadLargeFile(path: string) {
+  const { size } = await stat(path)
+  return connection.addDocumentToLibrary({
+    folder: 'Shared Documents/Archive',
+    fileName: basename(path),
+    payload: createReadStream(path),
+    contentLength: size,
+  })
+}
+
+// Downloading a large file to disk
+export async function downloadTo(fileName: string, destination: string) {
+  const res = await connection.getDocumentStreamFromLibrary({
+    folder: 'Shared Documents/Archive',
+    fileName,
+  })
+  if (!res.success) throw new Error(res.error)
+  await pipeline(res.data, createWriteStream(destination))
 }

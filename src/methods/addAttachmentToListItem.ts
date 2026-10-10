@@ -8,19 +8,20 @@ import os from 'os'
 import { post } from '../ntlm'
 import { encodePath, odataLiteral, safeParseServerUrl } from '../utils'
 import { toFailure } from '../errors'
+import { createConnectionContext, withDigest } from '../context'
 
 /**
- * Attaches a file to an existing list item. Returns the attachment's server-relative URL.
+ * Attaches a file to a list item. Returns the attachment's server-relative URL.
  *
- * Factory form of {@link SiteConnection.addAttachmentToListItem}: call with your
- * {@link SiteConnectionOptions} to get a reusable action. See the
+ * Factory form of {@link SiteConnection.addAttachmentToListItem}: call with
+ * your {@link SiteConnectionOptions} to get a reusable action. See the
  * `SiteConnection` member for full parameter and return documentation.
  */
 export const addAttachmentToListItem: ActionFactory<
   AddAttachmentToListItemOptions,
   string
-> =
-  ({
+> = (options, context = createConnectionContext(options)) => {
+  const {
     site,
     serverRelativeUrl,
     username,
@@ -29,8 +30,8 @@ export const addAttachmentToListItem: ActionFactory<
     domain = '',
     agentOptions,
     hostname = os.hostname(),
-  }) =>
-  async ({
+  } = options
+  return async ({
     accessToken,
     requestDigest,
     listName,
@@ -43,27 +44,34 @@ export const addAttachmentToListItem: ActionFactory<
       site + encodePath(serverRelativeUrl)
     }/_api/web/lists/GetByTitle('${odataLiteral(listName)}')/items('${spId}')/AttachmentFiles/add(FileName='${odataLiteral(fileName)}')`
 
-    try {
-      const config = {
-        url,
-        username,
-        password,
-        workstation: hostname,
-        domain,
-        agentOptions,
-        headers: {
-          Accept: 'application/json;odata=verbose',
-          'Content-Type': 'application/json;odata=verbose',
-          'Content-Length': payload.length,
-          'X-RequestDigest': requestDigest ?? accessToken,
-        },
-        body: payload,
-        ...optional,
+    return withDigest(
+      'addAttachmentToListItem',
+      context,
+      requestDigest ?? accessToken,
+      optional,
+      async (digest) => {
+        try {
+          const res = await post({
+            url,
+            username,
+            password,
+            workstation: hostname,
+            domain,
+            agentOptions,
+            headers: {
+              Accept: 'application/json;odata=verbose',
+              'Content-Type': 'application/json;odata=verbose',
+              'Content-Length': payload.length,
+              'X-RequestDigest': digest,
+            },
+            body: payload,
+            ...optional,
+          })
+          return safeParseServerUrl(res)
+        } catch (error) {
+          return toFailure('addAttachmentToListItem', error)
+        }
       }
-      const res = await post(config)
-      const result = safeParseServerUrl(res)
-      return result
-    } catch (error) {
-      return toFailure('addAttachmentToListItem', error)
-    }
+    )
   }
+}

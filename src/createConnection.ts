@@ -1,5 +1,6 @@
 import type { SiteConnectionFactory, SiteConnectionOptions } from './types'
 import * as methods from './methods'
+import { createConnectionContext } from './context'
 
 /**
  * Checks the shape of connection options and throws a `TypeError` describing
@@ -77,17 +78,22 @@ export function validateSiteConnectionOptions(
  */
 export const createSiteConnection: SiteConnectionFactory = (options) => {
   validateSiteConnectionOptions(options)
+  const context = createConnectionContext(options)
   return {
-    addAttachmentToListItem: methods.addAttachmentToListItem(options),
-    addDocumentToLibrary: methods.addDocumentToLibrary(options),
-    addListItem: methods.addListItem(options),
+    addAttachmentToListItem: methods.addAttachmentToListItem(options, context),
+    addDocumentToLibrary: methods.addDocumentToLibrary(options, context),
+    addListItem: methods.addListItem(options, context),
     checkFolderExistsInLibrary: methods.checkFolderExistsInLibrary(options),
-    createFolderInLibrary: methods.createFolderInLibrary(options),
-    deleteDocumentFromLibrary: methods.deleteDocumentFromLibrary(options),
-    deleteListItem: methods.deleteListItem(options),
+    createFolderInLibrary: methods.createFolderInLibrary(options, context),
+    deleteDocumentFromLibrary: methods.deleteDocumentFromLibrary(
+      options,
+      context
+    ),
+    deleteListItem: methods.deleteListItem(options, context),
     getAuthToken: methods.getAuthToken(options),
     getFormDigestValue: methods.getFormDigestValue(options),
     getDocumentFromLibrary: methods.getDocumentFromLibrary(options),
+    getDocumentStreamFromLibrary: methods.getDocumentStreamFromLibrary(options),
     getFolderContents: methods.getFolderContents(options),
     getAllFolderContents: methods.getAllFolderContents(options),
     iterateFolderContents: methods.iterateFolderContents(options),
@@ -97,6 +103,6 @@ export const createSiteConnection: SiteConnectionFactory = (options) => {
     iterateListContents: methods.iterateListContents(options),
     getListItem: methods.getListItem(options),
     getListItemType: methods.getListItemType(options),
-    updateListItem: methods.updateListItem(options),
+    updateListItem: methods.updateListItem(options, context),
   }
 }

@@ -1,3 +1,4 @@
+import { Readable } from 'node:stream'
 import type {
   Failure,
   FailureCode,
@@ -56,7 +57,14 @@ export function safeParseAuthToken(token: any): Result<string> {
     : success(token)
 }
 
-export function safeParseFormDigestValue(res: any): Result<string> {
+/** Parsed `/_api/contextinfo` response. */
+export type ContextInfo = {
+  digest: string
+  /** Lifetime of `digest` in seconds, as reported by SharePoint (default 1800). */
+  timeoutSeconds: number
+}
+
+export function safeParseContextInfo(res: any): Result<ContextInfo> {
   if (typeof res !== 'string') return failure('Incorrect response format')
   try {
     const parsed = JSON.parse(res)
@@ -66,12 +74,22 @@ export function safeParseFormDigestValue(res: any): Result<string> {
     if (!contextInfo?.FormDigestValue)
       return failure('FormDigestValue not in response')
     const token = contextInfo.FormDigestValue
-    return typeof token !== 'string'
-      ? failure('Access token not in response')
-      : success(token)
+    if (typeof token !== 'string')
+      return failure('Access token not in response')
+    const timeout = contextInfo.FormDigestTimeoutSeconds
+    return success({
+      digest: token,
+      timeoutSeconds:
+        typeof timeout === 'number' && timeout > 0 ? timeout : 1800,
+    })
   } catch (error) {
     return failure(`Unable to parse ${res}`)
   }
+}
+
+export function safeParseFormDigestValue(res: any): Result<string> {
+  const info = safeParseContextInfo(res)
+  return info.success ? success(info.data.digest) : info
 }
 
 export function safeParseItemType(res: any): Result<string> {
@@ -166,4 +184,10 @@ export function safeParseFolderExists(res: any): Result<boolean> {
   } catch (error) {
     return failure(`Unable to parse ${res}`)
   }
+}
+
+export function safeParseStream(res: any): Result<Readable> {
+  return res instanceof Readable
+    ? success(res)
+    : failure('Incorrect response format')
 }

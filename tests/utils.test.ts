@@ -5,6 +5,7 @@ import {
   failure,
   safeParseAuthToken,
   safeParseFormDigestValue,
+  safeParseContextInfo,
   safeParseResults,
   safeParseResult,
   safeParseDocument,
@@ -134,6 +135,30 @@ describe('safeParseResults', () => {
     const expected = failure('Unable to parse {d: 1')
     const parsed = safeParseResults(res)
     expect(parsed).toStrictEqual(expected)
+  })
+})
+
+describe('safeParseContextInfo', () => {
+  const body = (info: Record<string, unknown>) =>
+    JSON.stringify({ d: { GetContextWebInformation: info } })
+
+  it('returns digest and timeout', () => {
+    expect(
+      safeParseContextInfo(
+        body({ FormDigestValue: 'abc', FormDigestTimeoutSeconds: 900 })
+      )
+    ).toStrictEqual(success({ digest: 'abc', timeoutSeconds: 900 }))
+  })
+
+  it('defaults the timeout to 1800 when missing or invalid', () => {
+    expect(
+      safeParseContextInfo(body({ FormDigestValue: 'abc' }))
+    ).toStrictEqual(success({ digest: 'abc', timeoutSeconds: 1800 }))
+    expect(
+      safeParseContextInfo(
+        body({ FormDigestValue: 'abc', FormDigestTimeoutSeconds: '900' })
+      )
+    ).toStrictEqual(success({ digest: 'abc', timeoutSeconds: 1800 }))
   })
 })
 

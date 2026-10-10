@@ -54,27 +54,19 @@ const connection = createSiteConnection({
 })
 
 // Read
-const params = new URLSearchParams({ $select: 'Id,Title', $top: '500' })
-const items = await connection.getListContents({ listName: 'Invoices', params })
-if (!items.success) throw new Error(items.error)
-console.log(items.data) // unknown[] — narrow with `as Invoice[]`
-
-// Write: every write needs a request digest and the list's entity type
-const [type, digest] = await Promise.all([
-  connection.getListItemType({ listName: 'Invoices' }),
-  connection.getFormDigestValue({}),
-])
-if (!type.success) throw new Error(type.error)
-if (!digest.success) throw new Error(digest.error)
-
-const created = await connection.addListItem({
-  requestDigest: digest.data,
+type Invoice = { Id: number; Title: string; Amount: number }
+const params = new URLSearchParams({ $select: 'Id,Title,Amount', $top: '500' })
+const items = await connection.getAllListContents<Invoice>({
   listName: 'Invoices',
-  payload: JSON.stringify({
-    __metadata: { type: type.data },
-    Title: 'INV-1042',
-    Amount: 1250,
-  }),
+  params,
+})
+if (!items.success) throw new Error(items.error)
+console.log(items.data.map((i) => i.Title))
+
+// Write: the request digest and the list's entity type are handled for you
+const created = await connection.addListItem({
+  listName: 'Invoices',
+  payload: { Title: 'INV-1042', Amount: 1250 },
 })
 if (created.success) console.log(JSON.parse(created.data).Id)
 ```
@@ -147,9 +139,9 @@ text:
 | `UNKNOWN` | Anything else.                                                                          |
 
 ```ts
-const res = await connection.addListItem({ requestDigest, listName, payload })
+const res = await connection.addListItem({ listName, payload })
 if (!res.success) {
-  if (res.code === 'AUTH') requestDigest = await refreshDigest()
+  if (res.code === 'AUTH') await alertOps('credentials rejected')
   else if (res.code === 'TIMEOUT' || res.code === 'NETWORK') await retryLater()
   else log.error(res.error, res.details)
 }
@@ -160,33 +152,92 @@ logging.
 
 ### Write operations: the request digest
 
-SharePoint requires an `X-RequestDigest` header on every write. Obtain one
-with `getFormDigestValue()` and pass it as `requestDigest` to any write action.
-Digests expire (30 minutes by default), so fetch one per batch of writes.
+SharePoint requires an `X-RequestDigest` header on every write. The connection
+takes care of it: the first write fetches a digest from `/_api/contextinfo`,
+caches it until a minute before SharePoint says it expires (30 minutes by
+default), and if SharePoint still rejects it with 403 the digest is refreshed
+and the write retried once. Concurrent writes share a single fetch.
 
-`accessToken` is the pre-4.0 name for the same option and is still accepted,
-but it is deprecated; new code should use `requestDigest`.
+To manage the digest yourself, pass `requestDigest` explicitly — the cache is
+then bypassed, and no automatic retry happens. `getFormDigestValue()` fetches
+one. `accessToken` is the pre-4.0 name for the same option; it still works but
+is deprecated.
+
+Standalone action factories each keep their own cache. To share one, create a
+context and pass it as the second argument:
+
+```ts
+import {
+  createConnectionContext,
+  addListItem,
+  deleteListItem,
+} from '@b-jones-rfd/sp-rest-connect'
+
+const ctx = createConnectionContext(options)
+const add = addListItem(options, ctx)
+const remove = deleteListItem(options, ctx) // shares add's digest
+```
 
 `getAuthToken()` is **not** this value — it returns the NTLM handshake header,
 which is connection-bound and only useful as a credentials check.
 
 ### Creating and updating items
 
-`addListItem` and `updateListItem` take a JSON **string**, and SharePoint
-requires it to carry the list's entity type:
+`addListItem` and `updateListItem` take a plain object. SharePoint needs the
+list's entity type (`__metadata.type`) on the body; the connection looks it up
+with `getListItemType` the first time it sees a list and caches it:
 
 ```ts
-const type = await connection.getListItemType({ listName: 'Invoices' })
-// type.data === 'SP.Data.InvoicesListItem'
+await connection.addListItem({
+  listName: 'Invoices',
+  payload: { Title: 'INV-1042', Amount: 1250 },
+})
 
-const payload = JSON.stringify({
-  __metadata: { type: type.data },
-  Title: 'INV-1042',
+await connection.updateListItem({
+  listName: 'Invoices',
+  spId: 17,
+  patch: { Amount: 1300 },
 })
 ```
 
+Include `__metadata: { type: 'SP.Data.InvoicesListItem' }` in the object
+yourself to skip the lookup. A pre-serialised JSON string is still accepted
+for backwards compatibility but is deprecated and will be removed in 5.0.
+
 `updateListItem` is a partial update (OData `MERGE` with `If-Match: *`): only
 the fields in `patch` change, and the last writer wins.
+
+### Large files
+
+`addDocumentToLibrary` accepts a `Readable` as `payload`, and
+`getDocumentStreamFromLibrary` returns one, so files never have to fit in
+memory:
+
+```ts
+import { createReadStream, createWriteStream } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import { pipeline } from 'node:stream/promises'
+
+const { size } = await stat('backup.zip')
+await connection.addDocumentToLibrary({
+  folder: 'Shared Documents/Archive',
+  fileName: 'backup.zip',
+  payload: createReadStream('backup.zip'),
+  contentLength: size, // optional; without it the upload is chunked
+})
+
+const download = await connection.getDocumentStreamFromLibrary({
+  folder: 'Shared Documents/Archive',
+  fileName: 'backup.zip',
+})
+if (download.success)
+  await pipeline(download.data, createWriteStream('restored.zip'))
+```
+
+A stream can only be sent once, so if the managed digest turns out to be stale
+mid-upload the write fails with code `AUTH` instead of being retried; call
+again. HTTP errors on a download are reported as a `Failure` before any
+stream is returned.
 
 ### Folders
 
@@ -305,43 +356,45 @@ apostrophes doubled for OData automatically, so `"Bob's Tasks"` and
 
 All option types are exported (`AddListItemOptions`, `GetListContentsOptions`,
 …) and every member below is documented inline, so hovering in your editor
-shows the same details. `requestDigest` means a digest from
-`getFormDigestValue`; `listName` is the list's display title.
+shows the same details. Every write action also accepts the common
+`requestDigest` option (managed automatically when omitted); `listName` is the
+list's display title.
 
 ### Lists
 
-| Action                                                                          | Required options                              | `data`                                                                         |
-| ------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------ |
-| `getListContents<T>({ listName, params? })`                                     | —                                             | `T[]` — one page; `nextLink` set when more remain. ≤ 100 items without `$top`. |
-| `getAllListContents<T>({ listName, params?, maxPages? })`                       | —                                             | `T[]` — every page concatenated.                                               |
-| `iterateListContents<T>({ listName, params?, maxPages? })`                      | —                                             | async iterator of `PageResult<T>`.                                             |
-| `getNextPage<T>({ nextLink })`                                                  | —                                             | `T[]` — the linked page; same-origin links only.                               |
-| `getListItem<T>({ listName, spId })`                                            | —                                             | `T` — the item object.                                                         |
-| `getListItemType({ listName })`                                                 | —                                             | `string` — e.g. `'SP.Data.InvoicesListItem'`.                                  |
-| `addListItem({ requestDigest, listName, payload })`                             | `payload`: JSON string with `__metadata.type` | `string` — created item as raw JSON; `JSON.parse` for the new `Id`.            |
-| `updateListItem({ requestDigest, listName, spId, patch })`                      | `patch`: JSON string with `__metadata.type`   | `string` — echoes `patch` (SharePoint returns no body).                        |
-| `deleteListItem({ requestDigest, listName, spId })`                             | —                                             | `''`                                                                           |
-| `addAttachmentToListItem({ requestDigest, listName, spId, fileName, payload })` | `payload`: `Buffer`                           | `string` — server-relative URL of the attachment.                              |
+| Action                                                           | Required options                          | `data`                                                                         |
+| ---------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------ |
+| `getListContents<T>({ listName, params? })`                      | —                                         | `T[]` — one page; `nextLink` set when more remain. ≤ 100 items without `$top`. |
+| `getAllListContents<T>({ listName, params?, maxPages? })`        | —                                         | `T[]` — every page concatenated.                                               |
+| `iterateListContents<T>({ listName, params?, maxPages? })`       | —                                         | async iterator of `PageResult<T>`.                                             |
+| `getNextPage<T>({ nextLink })`                                   | —                                         | `T[]` — the linked page; same-origin links only.                               |
+| `getListItem<T>({ listName, spId })`                             | —                                         | `T` — the item object.                                                         |
+| `getListItemType({ listName })`                                  | —                                         | `string` — e.g. `'SP.Data.InvoicesListItem'`.                                  |
+| `addListItem({ listName, payload })`                             | `payload`: object (or legacy JSON string) | `string` — created item as raw JSON; `JSON.parse` for the new `Id`.            |
+| `updateListItem({ listName, spId, patch })`                      | `patch`: object (or legacy JSON string)   | `string` — the serialised patch (SharePoint returns no body).                  |
+| `deleteListItem({ listName, spId })`                             | —                                         | `''`                                                                           |
+| `addAttachmentToListItem({ listName, spId, fileName, payload })` | `payload`: `Buffer`                       | `string` — server-relative URL of the attachment.                              |
 
 ### Document libraries
 
-| Action                                                               | Required options    | `data`                                                                                    |
-| -------------------------------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------- |
-| `getFolderContents<T>({ folder, params? })`                          | —                   | `T[]` — one page of `SP.File` objects (`Name`, `Length`, …); `nextLink` when more remain. |
-| `getAllFolderContents<T>({ folder, params?, maxPages? })`            | —                   | `T[]` — every page concatenated.                                                          |
-| `iterateFolderContents<T>({ folder, params?, maxPages? })`           | —                   | async iterator of `PageResult<T>`.                                                        |
-| `getDocumentFromLibrary({ folder, fileName })`                       | —                   | `Buffer` — file contents.                                                                 |
-| `checkFolderExistsInLibrary({ folder })`                             | —                   | `boolean` — a missing folder is a successful `false`.                                     |
-| `createFolderInLibrary({ requestDigest, folder })`                   | parent must exist   | `string` — server-relative URL of the new folder.                                         |
-| `addDocumentToLibrary({ requestDigest, folder, fileName, payload })` | `payload`: `Buffer` | `string` — server-relative URL; overwrites existing files.                                |
-| `deleteDocumentFromLibrary({ requestDigest, folder, fileName })`     | —                   | `string` — the deleted `fileName`.                                                        |
+| Action                                                                | Required options                | `data`                                                                                    |
+| --------------------------------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------- |
+| `getFolderContents<T>({ folder, params? })`                           | —                               | `T[]` — one page of `SP.File` objects (`Name`, `Length`, …); `nextLink` when more remain. |
+| `getAllFolderContents<T>({ folder, params?, maxPages? })`             | —                               | `T[]` — every page concatenated.                                                          |
+| `iterateFolderContents<T>({ folder, params?, maxPages? })`            | —                               | async iterator of `PageResult<T>`.                                                        |
+| `getDocumentFromLibrary({ folder, fileName })`                        | —                               | `Buffer` — file contents.                                                                 |
+| `getDocumentStreamFromLibrary({ folder, fileName })`                  | —                               | `Readable` — file contents, unbuffered.                                                   |
+| `checkFolderExistsInLibrary({ folder })`                              | —                               | `boolean` — a missing folder is a successful `false`.                                     |
+| `createFolderInLibrary({ folder })`                                   | parent must exist               | `string` — server-relative URL of the new folder.                                         |
+| `addDocumentToLibrary({ folder, fileName, payload, contentLength? })` | `payload`: `Buffer \| Readable` | `string` — server-relative URL; overwrites existing files.                                |
+| `deleteDocumentFromLibrary({ folder, fileName })`                     | —                               | `string` — the deleted `fileName`.                                                        |
 
 ### Authentication
 
-| Action                   | `data`                                                                     |
-| ------------------------ | -------------------------------------------------------------------------- |
-| `getFormDigestValue({})` | `string` — request digest for `requestDigest`.                             |
-| `getAuthToken({})`       | `string` — NTLM Type 3 `Authorization` header. Diagnostic only; see above. |
+| Action                   | `data`                                                                       |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| `getFormDigestValue({})` | `string` — a request digest, if you want to manage `requestDigest` yourself. |
+| `getAuthToken({})`       | `string` — NTLM Type 3 `Authorization` header. Diagnostic only; see above.   |
 
 ### Low-level NTLM transport
 

@@ -1,4 +1,5 @@
 import type { AgentOptions } from 'node:https'
+import type { Readable } from 'node:stream'
 
 /**
  * Public types for `@b-jones-rfd/sp-rest-connect`.
@@ -191,25 +192,34 @@ export interface RequestOptions {
 }
 
 /**
- * Options for write actions. Supply the request digest from
- * {@link SiteConnection.getFormDigestValue} as `requestDigest`. Digests expire
- * (30 minutes by default); fetch a fresh one per batch of writes.
+ * Options for write actions.
+ *
+ * `requestDigest` is optional: when omitted, the connection fetches a digest
+ * from `/_api/contextinfo`, caches it until shortly before it expires, and
+ * transparently refreshes it (retrying the write once) if SharePoint rejects
+ * it with 403. Pass your own value to bypass the cache.
  *
  * `accessToken` is the pre-4.0 name for the same value and still works.
  */
-export type AuthenticatedRequestOptions = RequestOptions &
-  (
-    | {
-        /** SharePoint request digest (`X-RequestDigest`) from {@link SiteConnection.getFormDigestValue}. */
-        requestDigest: string
-        accessToken?: undefined
-      }
-    | {
-        /** @deprecated Use `requestDigest`. Same value, clearer name. */
-        accessToken: string
-        requestDigest?: undefined
-      }
-  )
+export type AuthenticatedRequestOptions = RequestOptions & {
+  /**
+   * SharePoint request digest (`X-RequestDigest`). Omit to let the connection
+   * manage it; supply one from {@link SiteConnection.getFormDigestValue} to
+   * take control yourself.
+   */
+  requestDigest?: string
+  /** @deprecated Use `requestDigest`, or omit both to use the managed digest. */
+  accessToken?: string
+}
+
+/**
+ * A list item to create or merge. Either a plain object — the entity type
+ * (`__metadata.type`) is looked up and cached per list when absent — or,
+ * for backwards compatibility, a pre-serialised JSON string.
+ *
+ * The `string` form is deprecated and will be removed in 5.0; pass an object.
+ */
+export type ListItemPayload = Record<string, unknown> | string
 
 export type AddAttachmentToListItemOptions = AuthenticatedRequestOptions & {
   /** List display title, as shown in the SharePoint UI (not the URL segment). */
@@ -230,22 +240,28 @@ export type AddDocumentToLibraryOptions = AuthenticatedRequestOptions & {
   folder: string
   /** File name, including extension. An existing file with the same name is overwritten. */
   fileName: string
-  /** File contents. */
-  payload: Buffer
+  /**
+   * File contents. A `Readable` (e.g. `fs.createReadStream(path)`) is piped
+   * to SharePoint without buffering it in memory. A stream can only be sent
+   * once, so a 403 for a stale managed digest is not retried for streams;
+   * supply `contentLength` when you know it, otherwise the upload is chunked.
+   */
+  payload: Buffer | Readable
+  /** Byte length of a `Readable` payload, if known. Ignored for `Buffer`. */
+  contentLength?: number
 }
 
 export type AddListItemOptions = AuthenticatedRequestOptions & {
   /** List display title, as shown in the SharePoint UI (not the URL segment). */
   listName: string
   /**
-   * JSON-encoded item. Must include the entity type from
-   * {@link SiteConnection.getListItemType}:
+   * The item's fields. Pass a plain object; the entity type is resolved via
+   * {@link SiteConnection.getListItemType} and cached per list. Include
+   * `__metadata: { type }` yourself to skip the lookup.
    *
-   * ```ts
-   * JSON.stringify({ __metadata: { type: itemType }, Title: 'Hello' })
-   * ```
+   * A pre-serialised JSON string is still accepted but deprecated.
    */
-  payload: string
+  payload: ListItemPayload
 }
 
 export interface CheckFolderExistsInLibraryOptions extends RequestOptions {
@@ -287,6 +303,13 @@ export interface GetDocumentFromLibraryOptions extends RequestOptions {
    * @defaultValue `true`
    */
   binary?: boolean
+}
+
+export interface GetDocumentStreamFromLibraryOptions extends RequestOptions {
+  /** Folder containing the file, relative to `serverRelativeUrl`. */
+  folder: string
+  /** File name, including extension. */
+  fileName: string
 }
 
 export interface GetFolderContentsOptions extends RequestOptions {
@@ -344,28 +367,65 @@ export type UpdateListItemOptions = AuthenticatedRequestOptions & {
   /** Integer `ID` of the list item. */
   spId: number
   /**
-   * JSON-encoded partial item. Only the fields present are changed (OData
-   * MERGE). Must include `__metadata: { type }` from
-   * {@link SiteConnection.getListItemType}.
+   * The fields to change (OData MERGE: fields you omit are untouched). Pass a
+   * plain object; the entity type is resolved and cached per list unless you
+   * include `__metadata: { type }` yourself.
+   *
+   * A pre-serialised JSON string is still accepted but deprecated.
    */
-  patch: string
+  patch: ListItemPayload
+}
+
+/**
+ * Caches a request digest for one site. Created by `createConnectionContext`.
+ */
+export interface DigestCache {
+  /** A valid digest, fetching or refreshing it as needed. Concurrent callers share one fetch. */
+  get(request: RequestOptions): Promise<Result<string>>
+  /** Drop the cached digest so the next `get` fetches a fresh one. */
+  invalidate(): void
+}
+
+/** Caches `ListItemEntityTypeFullName` per list. Created by `createConnectionContext`. */
+export interface EntityTypeCache {
+  get(listName: string, request: RequestOptions): Promise<Result<string>>
+  /** Forget one list's type, or every list's when `listName` is omitted. */
+  invalidate(listName?: string): void
+}
+
+/**
+ * Per-site state shared by write actions: the managed request digest and the
+ * entity-type lookup cache. `createSiteConnection` makes one and hands it to
+ * every action it creates; standalone factories create their own unless you
+ * pass one, so share a context to share the caches:
+ *
+ * @example
+ * const ctx = createConnectionContext(options)
+ * const add = addListItem(options, ctx)
+ * const update = updateListItem(options, ctx)
+ */
+export interface ConnectionContext {
+  digests: DigestCache
+  entityTypes: EntityTypeCache
 }
 
 /**
  * Creates an {@link Action} bound to a site. Call it once with your
  * {@link SiteConnectionOptions}, then call the returned action as many times
- * as needed.
+ * as needed. Write actions accept an optional {@link ConnectionContext} to
+ * share the managed digest across actions.
  */
 export type ActionFactory<TParams, TResponse> = (
-  options: SiteConnectionOptions
+  options: SiteConnectionOptions,
+  context?: ConnectionContext
 ) => Action<TParams, TResponse>
 
 /**
  * All actions bound to one site. Create with `createSiteConnection`.
  *
- * Read actions need only the connection. Write actions additionally need a
- * request digest from {@link SiteConnection.getFormDigestValue}, passed as
- * `requestDigest`.
+ * Write actions need a request digest; the connection obtains, caches and
+ * refreshes one automatically. Pass `requestDigest` yourself only if you want
+ * to manage it (see {@link SiteConnection.getFormDigestValue}).
  */
 export type SiteConnection = {
   /**
@@ -378,7 +438,7 @@ export type SiteConnection = {
   addAttachmentToListItem: Action<AddAttachmentToListItemOptions, string>
   /**
    * Uploads a file to a document library folder, overwriting any existing
-   * file with the same name.
+   * file with the same name. `payload` may be a `Buffer` or a `Readable`.
    *
    * `POST /_api/web/GetFolderByServerRelativeUrl('{serverRelativeUrl}/{folder}')/Files/add(url='{fileName}',overwrite=true)`
    *
@@ -391,18 +451,14 @@ export type SiteConnection = {
    * `POST /_api/web/lists/GetByTitle('{listName}')/items`
    *
    * @returns `data` is the created item as a raw JSON string
-   *   (`odata=nometadata`); `JSON.parse` it to read the new `Id`.
+   *   (`odata=nometadata`); `JSON.parse` it to read the new `Id`. (5.0 will
+   *   return the parsed object.)
    * @example
-   * const [type, digest] = await Promise.all([
-   *   connection.getListItemType({ listName: 'Tasks' }),
-   *   connection.getFormDigestValue({}),
-   * ])
-   * if (!type.success || !digest.success) throw new Error('setup failed')
    * const created = await connection.addListItem({
-   *   requestDigest: digest.data,
    *   listName: 'Tasks',
-   *   payload: JSON.stringify({ __metadata: { type: type.data }, Title: 'Hello' }),
+   *   payload: { Title: 'Hello' },
    * })
+   * if (created.success) console.log(JSON.parse(created.data).Id)
    */
   addListItem: Action<AddListItemOptions, string>
   /**
@@ -458,6 +514,22 @@ export type SiteConnection = {
    * @returns `data` is the file contents as a `Buffer`.
    */
   getDocumentFromLibrary: Action<GetDocumentFromLibraryOptions, Buffer>
+  /**
+   * Downloads a file as a stream, without buffering it in memory.
+   *
+   * `GET /_api/web/GetFolderByServerRelativeUrl('{serverRelativeUrl}/{folder}')/Files('{fileName}')/$value`
+   *
+   * @returns `data` is a `Readable` of the file contents. HTTP and auth
+   *   errors are still reported as a `Failure` before any stream is returned;
+   *   a network drop mid-download surfaces as an `'error'` event on the stream.
+   * @example
+   * const res = await connection.getDocumentStreamFromLibrary({ folder: 'Shared Documents', fileName: 'big.iso' })
+   * if (res.success) await pipeline(res.data, createWriteStream('big.iso'))
+   */
+  getDocumentStreamFromLibrary: Action<
+    GetDocumentStreamFromLibraryOptions,
+    Readable
+  >
   /**
    * Lists the files directly inside a folder (subfolders are not included).
    *

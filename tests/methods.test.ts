@@ -1,8 +1,14 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import http from 'node:http'
 import os from 'node:os'
 import type { AddressInfo } from 'node:net'
-import { createSiteConnection } from '../src'
+import { Readable } from 'node:stream'
+import {
+  createSiteConnection,
+  createConnectionContext,
+  addListItem,
+  deleteListItem,
+} from '../src'
 import type { PageResult, SiteConnection, SiteConnectionOptions } from '../src'
 import { failure, success } from '../src/utils'
 import { formatError } from './test-utils'
@@ -93,6 +99,7 @@ describe('createSiteConnection', () => {
       'getAllListContents',
       'getAuthToken',
       'getDocumentFromLibrary',
+      'getDocumentStreamFromLibrary',
       'getFolderContents',
       'getFormDigestValue',
       'getListContents',
@@ -1001,5 +1008,390 @@ describe('retry', () => {
     )
     const all = await sp.getAllListContents<number>({ listName: 'Tasks' })
     expect(all).toStrictEqual(success([0, 1]))
+  })
+})
+
+/** Routes requests by URL fragment; unmatched requests get 404. */
+type Route = [
+  match: string | RegExp,
+  handler: Parameters<typeof startNtlmServer>[0],
+]
+const router =
+  (...routes: Route[]) =>
+  (req: SeenRequest, res: http.ServerResponse) => {
+    for (const [match, handler] of routes) {
+      const hit =
+        typeof match === 'string'
+          ? req.url.includes(match)
+          : match.test(req.url)
+      if (hit) return handler(req, res)
+    }
+    res.statusCode = 404
+    res.end('no route')
+  }
+
+const contextInfo = (digest: string, timeoutSeconds = 1800) =>
+  json({
+    d: {
+      GetContextWebInformation: {
+        FormDigestValue: digest,
+        FormDigestTimeoutSeconds: timeoutSeconds,
+      },
+    },
+  })
+
+const entityType = (type: string) => json({ ListItemEntityTypeFullName: type })
+
+const writes = (s: NtlmTestServer) =>
+  s.requests.filter((r) => r.ntlmType === 3 && !r.url.includes('contextinfo'))
+const digestFetches = (s: NtlmTestServer) =>
+  s.requests.filter((r) => r.ntlmType === 3 && r.url.includes('contextinfo'))
+
+describe('managed request digest', () => {
+  it('fetches a digest when none is supplied and reuses it', async () => {
+    const { sp, server } = await connect(
+      router(
+        ['contextinfo', contextInfo('managed-1')],
+        ['/items', json({ d: { ID: 1 } })]
+      )
+    )
+    const a = await sp.addListItem({ listName: 'Tasks', payload: '{}' })
+    const b = await sp.deleteListItem({ listName: 'Tasks', spId: 1 })
+    expect(a.success && b.success).toBe(true)
+    expect(digestFetches(server)).toHaveLength(1)
+    const [w1, w2] = writes(server)
+    expect(w1.headers['x-requestdigest']).toBe('managed-1')
+    expect(w2.headers['x-requestdigest']).toBe('managed-1')
+  })
+
+  it('shares one in-flight fetch between concurrent writes', async () => {
+    const { sp, server } = await connect(
+      router(
+        ['contextinfo', contextInfo('managed-1')],
+        ['/items', json({ d: { ID: 1 } })]
+      )
+    )
+    await Promise.all([
+      sp.deleteListItem({ listName: 'Tasks', spId: 1 }),
+      sp.deleteListItem({ listName: 'Tasks', spId: 2 }),
+      sp.deleteListItem({ listName: 'Tasks', spId: 3 }),
+    ])
+    expect(digestFetches(server)).toHaveLength(1)
+    expect(writes(server)).toHaveLength(3)
+  })
+
+  it('refreshes once on 403 and retries the write', async () => {
+    let digests = 0
+    let attempts = 0
+    const { sp, server } = await connect(
+      router(
+        ['contextinfo', (req, res) => contextInfo(`d${++digests}`)(req, res)],
+        [
+          '/items',
+          (req, res) => {
+            attempts++
+            if (req.headers['x-requestdigest'] === 'd1') {
+              res.statusCode = 403
+              res.end('The security validation for this page is invalid')
+              return
+            }
+            json({ d: { ID: 7 } })(req, res)
+          },
+        ]
+      )
+    )
+    const result = await sp.addListItem({ listName: 'Tasks', payload: '{}' })
+    expect(result).toStrictEqual(success('{"d":{"ID":7}}'))
+    expect(attempts).toBe(2)
+    expect(digestFetches(server)).toHaveLength(2)
+    expect(writes(server).map((w) => w.headers['x-requestdigest'])).toEqual([
+      'd1',
+      'd2',
+    ])
+  })
+
+  it('retries at most once', async () => {
+    const { sp, server } = await connect(
+      router(['contextinfo', contextInfo('d')], ['/items', json('nope', 403)])
+    )
+    const result = await sp.deleteListItem({ listName: 'Tasks', spId: 1 })
+    expect(result).toMatchObject({ success: false, code: 'AUTH', status: 403 })
+    expect(writes(server)).toHaveLength(2)
+  })
+
+  it('does not touch the cache when an explicit digest is given', async () => {
+    const { sp, server } = await connect(
+      router(
+        ['contextinfo', contextInfo('managed')],
+        ['/items', json('nope', 403)]
+      )
+    )
+    const result = await sp.deleteListItem({
+      requestDigest: 'mine',
+      listName: 'Tasks',
+      spId: 1,
+    })
+    expect(result).toMatchObject({ success: false, status: 403 })
+    expect(digestFetches(server)).toHaveLength(0)
+    expect(writes(server)).toHaveLength(1) // no retry for explicit digests
+  })
+
+  it('reports a failed digest fetch under the calling action', async () => {
+    const { sp } = await connect(router(['contextinfo', json('down', 503)]))
+    const result = await sp.deleteListItem({ listName: 'Tasks', spId: 1 })
+    expect(result).toMatchObject({
+      success: false,
+      code: 'HTTP',
+      status: 503,
+      error: expect.stringMatching(
+        /^Error in deleteListItem: could not obtain a request digest: Error in getFormDigestValue: HTTP 503/
+      ),
+    })
+  })
+
+  it('refreshes before FormDigestTimeoutSeconds elapses', async () => {
+    let digests = 0
+    const { sp, server } = await connect(
+      router(
+        [
+          'contextinfo',
+          (req, res) => contextInfo(`d${++digests}`, 1000)(req, res), // 1000s, margin 60s
+        ],
+        ['/items', json({ d: { ID: 1 } })]
+      )
+    )
+    const now = vi.spyOn(Date, 'now')
+    try {
+      now.mockReturnValue(1_000_000)
+      await sp.deleteListItem({ listName: 'Tasks', spId: 1 })
+      now.mockReturnValue(1_000_000 + 939_000) // 1s before the refresh point
+      await sp.deleteListItem({ listName: 'Tasks', spId: 1 })
+      expect(digestFetches(server)).toHaveLength(1)
+      now.mockReturnValue(1_000_000 + 941_000) // 1s past it
+      await sp.deleteListItem({ listName: 'Tasks', spId: 1 })
+      expect(digestFetches(server)).toHaveLength(2)
+      expect(writes(server).at(-1)?.headers['x-requestdigest']).toBe('d2')
+    } finally {
+      now.mockRestore()
+    }
+  })
+
+  it('standalone factories share a digest through an explicit context', async () => {
+    const { server } = await connect(
+      router(
+        ['contextinfo', contextInfo('shared')],
+        ['/items', json({ d: { ID: 1 } })]
+      )
+    )
+    const options: SiteConnectionOptions = {
+      ...CREDS,
+      protocol: 'http',
+      site: server.url.replace(/^http:\/\//, ''),
+      serverRelativeUrl: SITE_PATH,
+    }
+    const ctx = createConnectionContext(options)
+    await addListItem(options, ctx)({ listName: 'Tasks', payload: '{}' })
+    await deleteListItem(options, ctx)({ listName: 'Tasks', spId: 1 })
+    expect(digestFetches(server)).toHaveLength(1)
+
+    // Without a shared context each factory fetches its own.
+    await deleteListItem(options)({ listName: 'Tasks', spId: 1 })
+    expect(digestFetches(server)).toHaveLength(2)
+  })
+})
+
+describe('object payloads', () => {
+  const typeLookups = (s: NtlmTestServer) =>
+    s.requests.filter(
+      (r) => r.ntlmType === 3 && r.url.includes('ListItemEntityTypeFullName')
+    )
+
+  it('resolves and caches the entity type for object payloads', async () => {
+    const { sp, server } = await connect(
+      router(
+        ['contextinfo', contextInfo('d')],
+        ['ListItemEntityTypeFullName', entityType('SP.Data.TasksListItem')],
+        ['/items', json({ d: { ID: 1 } })]
+      )
+    )
+    await sp.addListItem({ listName: 'Tasks', payload: { Title: 'A' } })
+    await sp.updateListItem({
+      listName: 'Tasks',
+      spId: 1,
+      patch: { Title: 'B' },
+    })
+    expect(typeLookups(server)).toHaveLength(1)
+    const [add, merge] = writes(server).filter(
+      (w) => !w.url.includes('ListItemEntityTypeFullName')
+    )
+    expect(JSON.parse(add.body.toString('utf8'))).toEqual({
+      __metadata: { type: 'SP.Data.TasksListItem' },
+      Title: 'A',
+    })
+    expect(JSON.parse(merge.body.toString('utf8'))).toEqual({
+      __metadata: { type: 'SP.Data.TasksListItem' },
+      Title: 'B',
+    })
+    expect(add.headers['content-length']).toBe(
+      String(Buffer.byteLength(add.body))
+    )
+  })
+
+  it('caches per list and skips the lookup when __metadata is supplied', async () => {
+    const { sp, server } = await connect(
+      router(
+        ['contextinfo', contextInfo('d')],
+        [
+          'ListItemEntityTypeFullName',
+          (req, res) =>
+            entityType(
+              req.url.includes('Other')
+                ? 'SP.Data.OtherListItem'
+                : 'SP.Data.TasksListItem'
+            )(req, res),
+        ],
+        ['/items', json({ d: { ID: 1 } })]
+      )
+    )
+    await sp.addListItem({ listName: 'Tasks', payload: { Title: 'A' } })
+    await sp.addListItem({ listName: 'Other', payload: { Title: 'B' } })
+    await sp.addListItem({ listName: 'Tasks', payload: { Title: 'C' } })
+    await sp.addListItem({
+      listName: 'Brand New',
+      payload: { __metadata: { type: 'SP.Data.X' }, Title: 'D' },
+    })
+    expect(typeLookups(server).map((r) => decodeURIComponent(r.url))).toEqual([
+      expect.stringContaining("GetByTitle('Tasks')"),
+      expect.stringContaining("GetByTitle('Other')"),
+    ])
+  })
+
+  it('fails under the calling action when the type lookup fails', async () => {
+    const { sp } = await connect(
+      router(
+        ['contextinfo', contextInfo('d')],
+        ['ListItemEntityTypeFullName', json('gone', 404)]
+      )
+    )
+    const result = await sp.addListItem({
+      listName: 'Tasks',
+      payload: { Title: 'A' },
+    })
+    expect(result).toMatchObject({
+      success: false,
+      status: 404,
+      error: expect.stringMatching(
+        /^Error in addListItem: could not resolve the entity type of 'Tasks': /
+      ),
+    })
+  })
+
+  it('rejects payloads that are neither object nor string', async () => {
+    const { sp, server } = await connect(json({ d: { ID: 1 } }))
+    const result = await sp.addListItem({
+      listName: 'Tasks',
+      payload: [1, 2] as unknown as Record<string, unknown>,
+    })
+    expect(result).toMatchObject({ success: false, code: 'UNKNOWN' })
+    expect(server.requests).toHaveLength(0)
+  })
+})
+
+describe('streams', () => {
+  it('uploads a Readable payload chunked, or with Content-Length when given', async () => {
+    const { sp, server } = await connect(
+      json({ d: { ServerRelativeUrl: `${SITE_PATH}/Docs/big.bin` } })
+    )
+    const bytes = Buffer.from('streamed body')
+    const r1 = await sp.addDocumentToLibrary({
+      requestDigest: DIGEST,
+      folder: 'Docs',
+      fileName: 'big.bin',
+      payload: Readable.from([bytes]),
+    })
+    expect(r1).toStrictEqual(success(`${SITE_PATH}/Docs/big.bin`))
+    const leg1 = authenticatedLeg(server)
+    expect(leg1.body.toString()).toBe('streamed body')
+    expect(leg1.headers['content-length']).toBeUndefined()
+    expect(leg1.headers['transfer-encoding']).toBe('chunked')
+
+    const r2 = await sp.addDocumentToLibrary({
+      requestDigest: DIGEST,
+      folder: 'Docs',
+      fileName: 'big.bin',
+      payload: Readable.from([bytes]),
+      contentLength: bytes.length,
+    })
+    expect(r2.success).toBe(true)
+    const leg2 = server.requests.filter((r) => r.ntlmType === 3).at(-1)!
+    expect(leg2.headers['content-length']).toBe(String(bytes.length))
+    expect(leg2.body.toString()).toBe('streamed body')
+  })
+
+  it('does not retry a stream upload after a stale managed digest', async () => {
+    const { sp, server } = await connect(
+      router(
+        ['contextinfo', contextInfo('d')],
+        ['/Files/add', json('stale', 403)]
+      )
+    )
+    const result = await sp.addDocumentToLibrary({
+      folder: 'Docs',
+      fileName: 'x.bin',
+      payload: Readable.from([Buffer.from('x')]),
+    })
+    expect(result).toMatchObject({ success: false, code: 'AUTH', status: 403 })
+    expect(writes(server)).toHaveLength(1)
+  })
+
+  it('surfaces a failing source stream as a Failure', async () => {
+    const { sp } = await connect(json({ d: { ServerRelativeUrl: '/x' } }))
+    const broken = new Readable({
+      read() {
+        this.destroy(new Error('disk gone'))
+      },
+    })
+    const result = await sp.addDocumentToLibrary({
+      requestDigest: DIGEST,
+      folder: 'Docs',
+      fileName: 'x.bin',
+      payload: broken,
+    })
+    expect(result).toMatchObject({
+      success: false,
+      error: expect.stringContaining('disk gone'),
+    })
+  })
+
+  it('downloads a file as a Readable', async () => {
+    const { sp } = await connect((_req, res) => {
+      res.setHeader('Content-Type', 'application/octet-stream')
+      res.write('part one, ')
+      setTimeout(() => res.end('part two'), 10)
+    })
+    const result = await sp.getDocumentStreamFromLibrary({
+      folder: 'Docs',
+      fileName: 'r.pdf',
+    })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data).toBeInstanceOf(Readable)
+    const chunks: Buffer[] = []
+    for await (const c of result.data) chunks.push(c as Buffer)
+    expect(Buffer.concat(chunks).toString()).toBe('part one, part two')
+  })
+
+  it('reports HTTP errors for stream downloads as a Failure, not a stream', async () => {
+    const { sp } = await connect(json('missing', 404))
+    const result = await sp.getDocumentStreamFromLibrary({
+      folder: 'Docs',
+      fileName: 'r.pdf',
+    })
+    expect(result).toMatchObject({
+      success: false,
+      code: 'HTTP',
+      status: 404,
+      error: 'Error in getDocumentStreamFromLibrary: HTTP 404: missing',
+    })
   })
 })

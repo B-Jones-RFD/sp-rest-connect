@@ -7,6 +7,7 @@ export { deleteDocumentFromLibrary } from './deleteDocumentFromLibrary'
 export { deleteListItem } from './deleteListItem'
 export { getAuthToken } from './getAuthToken'
 export { getDocumentFromLibrary } from './getDocumentFromLibrary'
+export { getDocumentStreamFromLibrary } from './getDocumentStreamFromLibrary'
 export { getFolderContents } from './getFolderContents'
 export { getNextPage } from './getNextPage'
 export {
