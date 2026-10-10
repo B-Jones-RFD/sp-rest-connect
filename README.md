@@ -102,6 +102,7 @@ fails at startup rather than as an opaque 404 later.
 | `domain`            | `string`             | N        | `''`            | NTLM (NetBIOS) domain, e.g. `'CONTOSO'`. Leave empty for a server-local account.                              |
 | `hostname`          | `string`             | N        | `os.hostname()` | Workstation name sent in the NTLM handshake. Rarely needs changing.                                           |
 | `agentOptions`      | `https.AgentOptions` | N        |                 | TLS / socket options for the HTTP agent. See [TLS and internal certificates](#tls-and-internal-certificates). |
+| `retry`             | `RetryOptions`       | N        |                 | Retry transient failures on read actions. See [Retrying transient failures](#retrying-transient-failures).    |
 
 ### Standalone actions
 
@@ -192,6 +193,74 @@ the fields in `patch` change, and the last writer wins.
 Every `folder` argument is relative to `serverRelativeUrl` and starts with the
 library name: `'Shared Documents'`, `'Shared Documents/Reports/2026'`.
 
+### Typing results
+
+`getListContents`, `getFolderContents` and `getListItem` take a type parameter
+for the item shape. It is an assertion, not validation — SharePoint's JSON is
+not checked against it — but it saves a cast at every call site:
+
+```ts
+type Task = { Id: number; Title: string; Status: 'Open' | 'Done' }
+
+const res = await connection.getListContents<Task>({
+  listName: 'Tasks',
+  params,
+})
+if (res.success) res.data.filter((t) => t.Status === 'Open')
+```
+
+### Paging
+
+SharePoint returns at most `$top` items per response (100 if you don't set
+it) and, when more remain, a `nextLink`. You have three ways to deal with it:
+
+```ts
+// 1. Everything, in one array. Fails as a whole if any page fails.
+const all = await connection.getAllListContents<Task>({
+  listName: 'Tasks',
+  params,
+})
+
+// 2. Page by page, as an async iterator. Ends after the last page or the first failure.
+for await (const page of connection.iterateListContents<Task>({
+  listName: 'Tasks',
+})) {
+  if (!page.success) throw new Error(page.error)
+  process(page.data)
+}
+
+// 3. Manually: a single page exposes `nextLink`, which `getNextPage` follows.
+const first = await connection.getListContents<Task>({ listName: 'Tasks' })
+if (first.success && first.nextLink) {
+  const second = await connection.getNextPage<Task>({
+    nextLink: first.nextLink,
+  })
+}
+```
+
+`getAllFolderContents` / `iterateFolderContents` do the same for document
+library folders. Both `getAll*` and `iterate*` accept `maxPages` to cap the
+walk. `getNextPage` only follows links on the connection's own host, so your
+credentials are never sent elsewhere.
+
+### Retrying transient failures
+
+Set `retry` on the connection to retry **read** actions that fail with
+`NETWORK`, `TIMEOUT`, or HTTP 429/502/503/504. Writes are never retried
+automatically — a retried `addListItem` could create duplicates.
+
+```ts
+const connection = createSiteConnection({
+  ...options,
+  retry: { retries: 3, baseDelayMs: 300, maxDelayMs: 5000 },
+})
+```
+
+Delays grow exponentially with full jitter and stop early if the request's
+`signal` aborts. Pass `retryOn(failure, attempt)` to change what counts as
+retryable; `isTransientFailure` (the default) is exported if you want to
+extend it.
+
 ### Common options
 
 Every action accepts:
@@ -241,26 +310,31 @@ shows the same details. `requestDigest` means a digest from
 
 ### Lists
 
-| Action                                                                          | Required options                              | `data`                                                                 |
-| ------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------- |
-| `getListContents({ listName, params? })`                                        | —                                             | `unknown[]` — OData `value` array. Without `$top` you get ≤ 100 items. |
-| `getListItem({ listName, spId })`                                               | —                                             | `unknown` — the item object.                                           |
-| `getListItemType({ listName })`                                                 | —                                             | `string` — e.g. `'SP.Data.InvoicesListItem'`.                          |
-| `addListItem({ requestDigest, listName, payload })`                             | `payload`: JSON string with `__metadata.type` | `string` — created item as raw JSON; `JSON.parse` for the new `Id`.    |
-| `updateListItem({ requestDigest, listName, spId, patch })`                      | `patch`: JSON string with `__metadata.type`   | `string` — echoes `patch` (SharePoint returns no body).                |
-| `deleteListItem({ requestDigest, listName, spId })`                             | —                                             | `''`                                                                   |
-| `addAttachmentToListItem({ requestDigest, listName, spId, fileName, payload })` | `payload`: `Buffer`                           | `string` — server-relative URL of the attachment.                      |
+| Action                                                                          | Required options                              | `data`                                                                         |
+| ------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------ |
+| `getListContents<T>({ listName, params? })`                                     | —                                             | `T[]` — one page; `nextLink` set when more remain. ≤ 100 items without `$top`. |
+| `getAllListContents<T>({ listName, params?, maxPages? })`                       | —                                             | `T[]` — every page concatenated.                                               |
+| `iterateListContents<T>({ listName, params?, maxPages? })`                      | —                                             | async iterator of `PageResult<T>`.                                             |
+| `getNextPage<T>({ nextLink })`                                                  | —                                             | `T[]` — the linked page; same-origin links only.                               |
+| `getListItem<T>({ listName, spId })`                                            | —                                             | `T` — the item object.                                                         |
+| `getListItemType({ listName })`                                                 | —                                             | `string` — e.g. `'SP.Data.InvoicesListItem'`.                                  |
+| `addListItem({ requestDigest, listName, payload })`                             | `payload`: JSON string with `__metadata.type` | `string` — created item as raw JSON; `JSON.parse` for the new `Id`.            |
+| `updateListItem({ requestDigest, listName, spId, patch })`                      | `patch`: JSON string with `__metadata.type`   | `string` — echoes `patch` (SharePoint returns no body).                        |
+| `deleteListItem({ requestDigest, listName, spId })`                             | —                                             | `''`                                                                           |
+| `addAttachmentToListItem({ requestDigest, listName, spId, fileName, payload })` | `payload`: `Buffer`                           | `string` — server-relative URL of the attachment.                              |
 
 ### Document libraries
 
-| Action                                                               | Required options    | `data`                                                     |
-| -------------------------------------------------------------------- | ------------------- | ---------------------------------------------------------- |
-| `getFolderContents({ folder, params? })`                             | —                   | `unknown[]` — `SP.File` objects (`Name`, `Length`, …).     |
-| `getDocumentFromLibrary({ folder, fileName })`                       | —                   | `Buffer` — file contents.                                  |
-| `checkFolderExistsInLibrary({ folder })`                             | —                   | `boolean` — a missing folder is a successful `false`.      |
-| `createFolderInLibrary({ requestDigest, folder })`                   | parent must exist   | `string` — server-relative URL of the new folder.          |
-| `addDocumentToLibrary({ requestDigest, folder, fileName, payload })` | `payload`: `Buffer` | `string` — server-relative URL; overwrites existing files. |
-| `deleteDocumentFromLibrary({ requestDigest, folder, fileName })`     | —                   | `string` — the deleted `fileName`.                         |
+| Action                                                               | Required options    | `data`                                                                                    |
+| -------------------------------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------- |
+| `getFolderContents<T>({ folder, params? })`                          | —                   | `T[]` — one page of `SP.File` objects (`Name`, `Length`, …); `nextLink` when more remain. |
+| `getAllFolderContents<T>({ folder, params?, maxPages? })`            | —                   | `T[]` — every page concatenated.                                                          |
+| `iterateFolderContents<T>({ folder, params?, maxPages? })`           | —                   | async iterator of `PageResult<T>`.                                                        |
+| `getDocumentFromLibrary({ folder, fileName })`                       | —                   | `Buffer` — file contents.                                                                 |
+| `checkFolderExistsInLibrary({ folder })`                             | —                   | `boolean` — a missing folder is a successful `false`.                                     |
+| `createFolderInLibrary({ requestDigest, folder })`                   | parent must exist   | `string` — server-relative URL of the new folder.                                         |
+| `addDocumentToLibrary({ requestDigest, folder, fileName, payload })` | `payload`: `Buffer` | `string` — server-relative URL; overwrites existing files.                                |
+| `deleteDocumentFromLibrary({ requestDigest, folder, fileName })`     | —                   | `string` — the deleted `fileName`.                                                        |
 
 ### Authentication
 

@@ -3,7 +3,7 @@ import http from 'node:http'
 import os from 'node:os'
 import type { AddressInfo } from 'node:net'
 import { createSiteConnection } from '../src'
-import type { SiteConnection, SiteConnectionOptions } from '../src'
+import type { PageResult, SiteConnection, SiteConnectionOptions } from '../src'
 import { failure, success } from '../src/utils'
 import { formatError } from './test-utils'
 import {
@@ -89,6 +89,8 @@ describe('createSiteConnection', () => {
       'createFolderInLibrary',
       'deleteDocumentFromLibrary',
       'deleteListItem',
+      'getAllFolderContents',
+      'getAllListContents',
       'getAuthToken',
       'getDocumentFromLibrary',
       'getFolderContents',
@@ -96,6 +98,9 @@ describe('createSiteConnection', () => {
       'getListContents',
       'getListItem',
       'getListItemType',
+      'getNextPage',
+      'iterateFolderContents',
+      'iterateListContents',
       'updateListItem',
     ])
     for (const fn of Object.values(sp)) expect(typeof fn).toBe('function')
@@ -801,5 +806,200 @@ describe('requestDigest alias', () => {
     expect(authenticatedLeg(server).headers['x-requestdigest']).toBe(
       'digest-old'
     )
+  })
+})
+
+describe('paging', () => {
+  /** Serves `pages` in order; each response links to the next via odata.nextLink. */
+  const paged =
+    (pages: unknown[][], failAt?: number) =>
+    (req: SeenRequest, res: http.ServerResponse) => {
+      const url = new URL(req.url, 'http://x')
+      const n = Number(url.searchParams.get('page') ?? '0')
+      if (failAt === n) {
+        res.statusCode = 503
+        res.end('busy')
+        return
+      }
+      const body: Record<string, unknown> = { value: pages[n] }
+      if (n + 1 < pages.length) {
+        body['odata.nextLink'] =
+          `http://${req.headers.host}${SITE_PATH}/_api/web/lists/GetByTitle('Tasks')/items?page=${n + 1}`
+      }
+      res.setHeader('Content-Type', 'application/json')
+      res.end(JSON.stringify(body))
+    }
+
+  it('getListContents exposes nextLink and omits it on the last page', async () => {
+    const { sp } = await connect(paged([[1, 2], [3]]))
+    const first = await sp.getListContents<number>({ listName: 'Tasks' })
+    expect(first.success).toBe(true)
+    if (!first.success) return
+    expect(first.data).toEqual([1, 2])
+    expect(first.nextLink).toMatch(/page=1$/)
+
+    const second = await sp.getNextPage<number>({ nextLink: first.nextLink! })
+    expect(second).toStrictEqual(success([3]))
+  })
+
+  it('getNextPage refuses a link on another origin', async () => {
+    const { sp } = await connect(paged([[1]]))
+    const result = await sp.getNextPage({
+      nextLink: 'https://evil.example/_api/web/lists',
+    })
+    expect(result).toMatchObject({
+      success: false,
+      code: 'UNKNOWN',
+      error: expect.stringContaining('nextLink must be on'),
+    })
+  })
+
+  it('getNextPage rejects an unparsable link without throwing', async () => {
+    const { sp } = await connect(paged([[1]]))
+    const result = await sp.getNextPage({ nextLink: 'not a url' })
+    expect(result.success).toBe(false)
+  })
+
+  it('getAllListContents concatenates every page', async () => {
+    const { sp, server } = await connect(paged([[1, 2], [3, 4], [5]]))
+    const all = await sp.getAllListContents<number>({ listName: 'Tasks' })
+    expect(all).toStrictEqual(success([1, 2, 3, 4, 5]))
+    expect(server.requests.filter((r) => r.ntlmType === 3)).toHaveLength(3)
+  })
+
+  it('getAllListContents returns the failure of a later page, not partial data', async () => {
+    const { sp } = await connect(paged([[1], [2], [3]], 1))
+    const all = await sp.getAllListContents<number>({ listName: 'Tasks' })
+    expect(all).toMatchObject({ success: false, code: 'HTTP', status: 503 })
+  })
+
+  it('getAllListContents honours maxPages', async () => {
+    const { sp } = await connect(paged([[1], [2], [3]]))
+    const all = await sp.getAllListContents<number>({
+      listName: 'Tasks',
+      maxPages: 2,
+    })
+    expect(all).toStrictEqual(success([1, 2]))
+  })
+
+  it('iterateListContents yields each page and stops after a failure', async () => {
+    const { sp } = await connect(paged([[1], [2], [3]], 1))
+    const seen: Array<PageResult<number>> = []
+    for await (const page of sp.iterateListContents<number>({
+      listName: 'Tasks',
+    })) {
+      seen.push(page)
+    }
+    expect(seen).toHaveLength(2)
+    expect(seen[0]).toMatchObject({ success: true, data: [1] })
+    expect(seen[1]).toMatchObject({ success: false, status: 503 })
+  })
+
+  it('iterateFolderContents / getAllFolderContents follow nextLink too', async () => {
+    const { sp } = await connect(paged([[{ Name: 'a' }], [{ Name: 'b' }]]))
+    const all = await sp.getAllFolderContents<{ Name: string }>({
+      folder: 'Docs',
+    })
+    expect(all).toStrictEqual(success([{ Name: 'a' }, { Name: 'b' }]))
+  })
+})
+
+describe('retry', () => {
+  const flaky = (failures: number, status = 503) =>
+    (() => {
+      let calls = 0
+      return (_req: SeenRequest, res: http.ServerResponse) => {
+        calls++
+        if (calls <= failures) {
+          res.statusCode = status
+          res.end('busy')
+          return
+        }
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ Id: calls }))
+      }
+    })()
+
+  it('is off by default', async () => {
+    const { sp } = await connect(flaky(1))
+    const result = await sp.getListItem({ listName: 'Tasks', spId: 1 })
+    expect(result).toMatchObject({ success: false, status: 503 })
+  })
+
+  it('retries transient HTTP failures on reads', async () => {
+    const { sp, server } = await connect(flaky(2), {
+      retry: { baseDelayMs: 1 },
+    })
+    const result = await sp.getListItem<{ Id: number }>({
+      listName: 'Tasks',
+      spId: 1,
+    })
+    expect(result).toStrictEqual(success({ Id: 3 }))
+    expect(server.requests.filter((r) => r.ntlmType === 3)).toHaveLength(3)
+  })
+
+  it('gives up after `retries` and returns the last failure', async () => {
+    const { sp, server } = await connect(flaky(5), {
+      retry: { retries: 1, baseDelayMs: 1 },
+    })
+    const result = await sp.getListItem({ listName: 'Tasks', spId: 1 })
+    expect(result).toMatchObject({ success: false, status: 503 })
+    expect(server.requests.filter((r) => r.ntlmType === 3)).toHaveLength(2)
+  })
+
+  it('does not retry non-transient failures', async () => {
+    const { sp, server } = await connect(flaky(1, 404), {
+      retry: { baseDelayMs: 1 },
+    })
+    const result = await sp.getListItem({ listName: 'Tasks', spId: 1 })
+    expect(result).toMatchObject({ success: false, status: 404 })
+    expect(server.requests.filter((r) => r.ntlmType === 3)).toHaveLength(1)
+  })
+
+  it('never retries write actions', async () => {
+    const { sp, server } = await connect(flaky(1), {
+      retry: { baseDelayMs: 1 },
+    })
+    const result = await sp.deleteListItem({
+      requestDigest: DIGEST,
+      listName: 'Tasks',
+      spId: 1,
+    })
+    expect(result).toMatchObject({ success: false, status: 503 })
+    expect(server.requests.filter((r) => r.ntlmType === 3)).toHaveLength(1)
+  })
+
+  it('honours a custom retryOn predicate', async () => {
+    const { sp, server } = await connect(flaky(1, 404), {
+      retry: { baseDelayMs: 1, retryOn: (f) => f.status === 404 },
+    })
+    const result = await sp.getListItem({ listName: 'Tasks', spId: 1 })
+    expect(result.success).toBe(true)
+    expect(server.requests.filter((r) => r.ntlmType === 3)).toHaveLength(2)
+  })
+
+  it('retries each page independently when collecting', async () => {
+    let calls = 0
+    const { sp } = await connect(
+      (req, res) => {
+        calls++
+        const n = Number(
+          new URL(req.url, 'http://x').searchParams.get('page') ?? 0
+        )
+        if (n === 1 && calls === 2) {
+          res.statusCode = 503
+          res.end('busy')
+          return
+        }
+        const body: Record<string, unknown> = { value: [n] }
+        if (n === 0)
+          body['odata.nextLink'] =
+            `http://${req.headers.host}${SITE_PATH}/_api/x?page=1`
+        res.end(JSON.stringify(body))
+      },
+      { retry: { baseDelayMs: 1 } }
+    )
+    const all = await sp.getAllListContents<number>({ listName: 'Tasks' })
+    expect(all).toStrictEqual(success([0, 1]))
   })
 })

@@ -1,5 +1,6 @@
 import type {
-  ActionFactory,
+  TypedActionFactory,
+  Result,
   GetListItemOptions,
   SiteConnection,
   SiteConnectionOptions,
@@ -8,6 +9,7 @@ import os from 'os'
 import { get } from '../ntlm'
 import { encodePath, odataLiteral, safeParseResult } from '../utils'
 import { toFailure } from '../errors'
+import { withRetry } from '../retry'
 
 /**
  * Reads a single list item by ID.
@@ -16,7 +18,7 @@ import { toFailure } from '../errors'
  * {@link SiteConnectionOptions} to get a reusable action. See the
  * `SiteConnection` member for full parameter and return documentation.
  */
-export const getListItem: ActionFactory<GetListItemOptions, unknown> =
+export const getListItem: TypedActionFactory<GetListItemOptions> =
   ({
     site,
     serverRelativeUrl,
@@ -25,9 +27,14 @@ export const getListItem: ActionFactory<GetListItemOptions, unknown> =
     protocol = 'https',
     domain = '',
     agentOptions,
+    retry,
     hostname = os.hostname(),
   }) =>
-  async ({ listName, spId, ...optional }) => {
+  async <T = unknown>({
+    listName,
+    spId,
+    ...optional
+  }: GetListItemOptions): Promise<Result<T>> => {
     const url = `${protocol}://${
       site + encodePath(serverRelativeUrl)
     }/_api/web/lists/GetByTitle('${odataLiteral(listName)}')/items('${spId}')`
@@ -45,11 +52,12 @@ export const getListItem: ActionFactory<GetListItemOptions, unknown> =
       ...optional,
     }
 
-    try {
-      const res = await get(config)
-      const result = safeParseResult(res)
-      return result
-    } catch (error) {
-      return toFailure('getListItem', error)
-    }
+    return withRetry(retry, optional.signal, async () => {
+      try {
+        const res = await get(config)
+        return safeParseResult(res) as Result<T>
+      } catch (error) {
+        return toFailure('getListItem', error)
+      }
+    })
   }

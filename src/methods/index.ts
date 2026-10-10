@@ -8,6 +8,13 @@ export { deleteListItem } from './deleteListItem'
 export { getAuthToken } from './getAuthToken'
 export { getDocumentFromLibrary } from './getDocumentFromLibrary'
 export { getFolderContents } from './getFolderContents'
+export { getNextPage } from './getNextPage'
+export {
+  getAllListContents,
+  getAllFolderContents,
+  iterateListContents,
+  iterateFolderContents,
+} from './paging'
 export { getFormDigestValue } from './getFormDigestValue'
 export { getListContents } from './getListContents'
 export { getListItem } from './getListItem'

@@ -1,4 +1,11 @@
-import type { Failure, FailureCode, Result, Success } from './types'
+import type {
+  Failure,
+  FailureCode,
+  Page,
+  PageResult,
+  Result,
+  Success,
+} from './types'
 
 export function success<T>(data: T): Success<T> {
   return {
@@ -82,15 +89,19 @@ export function safeParseItemType(res: any): Result<string> {
   }
 }
 
-export function safeParseResults(res: any): Result<unknown[]> {
+export function safeParseResults(res: any): PageResult<unknown> {
   if (typeof res !== 'string') return failure('Incorrect response format')
   try {
     const parsed = JSON.parse(res)
     if (!parsed.value) return failure('Results not in response')
     const results = parsed.value
-    return results && Array.isArray(results)
-      ? success<unknown[]>(results)
-      : failure('No results returned')
+    if (!results || !Array.isArray(results))
+      return failure('No results returned')
+    const page: Page<unknown> = success<unknown[]>(results)
+    // nometadata: "odata.nextLink"; verbose: d.__next (not used by this package)
+    const next = parsed['odata.nextLink'] ?? parsed['@odata.nextLink']
+    if (typeof next === 'string' && next.length > 0) page.nextLink = next
+    return page
   } catch (error) {
     return failure(`Unable to parse ${res}`)
   }

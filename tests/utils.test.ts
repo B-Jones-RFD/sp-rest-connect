@@ -137,6 +137,24 @@ describe('safeParseResults', () => {
   })
 })
 
+describe('safeParseResults paging', () => {
+  it('surfaces odata.nextLink when present and omits it otherwise', () => {
+    const link = "https://sp/_api/web/lists/GetByTitle('T')/items?$skiptoken=x"
+    expect(
+      safeParseResults(JSON.stringify({ value: [1], 'odata.nextLink': link }))
+    ).toStrictEqual({ success: true, data: [1], nextLink: link })
+    expect(
+      safeParseResults(JSON.stringify({ value: [1], '@odata.nextLink': link }))
+    ).toStrictEqual({ success: true, data: [1], nextLink: link })
+    expect(safeParseResults(JSON.stringify({ value: [1] }))).toStrictEqual(
+      success([1])
+    )
+    expect(
+      safeParseResults(JSON.stringify({ value: [1], 'odata.nextLink': '' }))
+    ).toStrictEqual(success([1]))
+  })
+})
+
 describe('safeParseResult', () => {
   const fixture = {
     result: 'pass',

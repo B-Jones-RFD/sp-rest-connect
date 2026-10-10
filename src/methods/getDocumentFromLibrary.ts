@@ -13,6 +13,7 @@ import {
   safeParseDocument,
 } from '../utils'
 import { toFailure } from '../errors'
+import { withRetry } from '../retry'
 
 /**
  * Downloads a file as a `Buffer`.
@@ -33,6 +34,7 @@ export const getDocumentFromLibrary: ActionFactory<
     protocol = 'https',
     domain = '',
     agentOptions,
+    retry,
     hostname = os.hostname(),
   }) =>
   async ({ folder, fileName, binary = true, ...optional }) => {
@@ -54,11 +56,13 @@ export const getDocumentFromLibrary: ActionFactory<
       ...optional,
     }
 
-    try {
-      const res = await get(config)
-      const document = safeParseDocument(res)
-      return document
-    } catch (error) {
-      return toFailure('getDocumentFromLibrary', error)
-    }
+    return withRetry(retry, optional.signal, async () => {
+      try {
+        const res = await get(config)
+        const document = safeParseDocument(res)
+        return document
+      } catch (error) {
+        return toFailure('getDocumentFromLibrary', error)
+      }
+    })
   }

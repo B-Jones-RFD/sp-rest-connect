@@ -1,5 +1,6 @@
 import type {
-  ActionFactory,
+  PagedActionFactory,
+  PageResult,
   GetListContentsOptions,
   SiteConnection,
   SiteConnectionOptions,
@@ -8,6 +9,7 @@ import os from 'os'
 import { get } from '../ntlm'
 import { encodePath, odataLiteral, safeParseResults } from '../utils'
 import { toFailure } from '../errors'
+import { withRetry } from '../retry'
 
 /**
  * Queries list items with optional OData `params`. Returns the OData `value` array.
@@ -16,10 +18,7 @@ import { toFailure } from '../errors'
  * {@link SiteConnectionOptions} to get a reusable action. See the
  * `SiteConnection` member for full parameter and return documentation.
  */
-export const getListContents: ActionFactory<
-  GetListContentsOptions,
-  unknown[]
-> =
+export const getListContents: PagedActionFactory<GetListContentsOptions> =
   ({
     username,
     password,
@@ -28,9 +27,14 @@ export const getListContents: ActionFactory<
     protocol = 'https',
     domain = '',
     agentOptions,
+    retry,
     hostname = os.hostname(),
   }) =>
-  async ({ listName, params = undefined, ...optional }) => {
+  async <T = unknown>({
+    listName,
+    params = undefined,
+    ...optional
+  }: GetListContentsOptions): Promise<PageResult<T>> => {
     const baseUrl = `${protocol}://${
       site + encodePath(serverRelativeUrl)
     }/_api/web/lists/GetByTitle('${odataLiteral(listName)}')/items`
@@ -50,11 +54,12 @@ export const getListContents: ActionFactory<
       ...optional,
     }
 
-    try {
-      const res = await get(config)
-      const results = safeParseResults(res)
-      return results
-    } catch (error) {
-      return toFailure('getListContents', error)
-    }
+    return withRetry(retry, optional.signal, async () => {
+      try {
+        const res = await get(config)
+        return safeParseResults(res) as PageResult<T>
+      } catch (error) {
+        return toFailure('getListContents', error)
+      }
+    })
   }

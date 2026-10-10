@@ -1,5 +1,6 @@
 import type {
-  ActionFactory,
+  PagedActionFactory,
+  PageResult,
   GetFolderContentsOptions,
   SiteConnection,
   SiteConnectionOptions,
@@ -8,6 +9,7 @@ import os from 'os'
 import { get } from '../ntlm'
 import { encodePath, odataPath, safeParseResults } from '../utils'
 import { toFailure } from '../errors'
+import { withRetry } from '../retry'
 
 /**
  * Lists the files directly inside a folder. Returns the OData `value` array.
@@ -16,10 +18,7 @@ import { toFailure } from '../errors'
  * {@link SiteConnectionOptions} to get a reusable action. See the
  * `SiteConnection` member for full parameter and return documentation.
  */
-export const getFolderContents: ActionFactory<
-  GetFolderContentsOptions,
-  unknown[]
-> =
+export const getFolderContents: PagedActionFactory<GetFolderContentsOptions> =
   ({
     site,
     serverRelativeUrl,
@@ -28,9 +27,14 @@ export const getFolderContents: ActionFactory<
     protocol = 'https',
     domain = '',
     agentOptions,
+    retry,
     hostname = os.hostname(),
   }) =>
-  async ({ folder, params, ...optional }) => {
+  async <T = unknown>({
+    folder,
+    params,
+    ...optional
+  }: GetFolderContentsOptions): Promise<PageResult<T>> => {
     const baseUrl = `${protocol}://${
       site + encodePath(serverRelativeUrl)
     }/_api/web/GetFolderByServerRelativeUrl('${odataPath(`${serverRelativeUrl}/${folder}`)}')/Files`
@@ -50,11 +54,12 @@ export const getFolderContents: ActionFactory<
       ...optional,
     }
 
-    try {
-      const res = await get(config)
-      const results = safeParseResults(res)
-      return results
-    } catch (error) {
-      return toFailure('getFolderContents', error)
-    }
+    return withRetry(retry, optional.signal, async () => {
+      try {
+        const res = await get(config)
+        return safeParseResults(res) as PageResult<T>
+      } catch (error) {
+        return toFailure('getFolderContents', error)
+      }
+    })
   }

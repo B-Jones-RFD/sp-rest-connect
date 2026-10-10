@@ -8,6 +8,7 @@ import os from 'os'
 import { get } from '../ntlm'
 import { encodePath, odataPath, safeParseFolderExists } from '../utils'
 import { toFailure } from '../errors'
+import { withRetry } from '../retry'
 
 /**
  * Checks whether a folder exists. A missing folder is a successful `false`.
@@ -28,6 +29,7 @@ export const checkFolderExistsInLibrary: ActionFactory<
     protocol = 'https',
     domain = '',
     agentOptions,
+    retry,
     hostname = os.hostname(),
   }) =>
   async ({ folder, ...optional }) => {
@@ -48,11 +50,13 @@ export const checkFolderExistsInLibrary: ActionFactory<
       ...optional,
     }
 
-    try {
-      const res = await get(config)
-      const results = safeParseFolderExists(res)
-      return results
-    } catch (error) {
-      return toFailure('checkFolderExistsInLibrary', error)
-    }
+    return withRetry(retry, optional.signal, async () => {
+      try {
+        const res = await get(config)
+        const results = safeParseFolderExists(res)
+        return results
+      } catch (error) {
+        return toFailure('checkFolderExistsInLibrary', error)
+      }
+    })
   }

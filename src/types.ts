@@ -66,6 +66,64 @@ export type Action<TConfig, TResponse> = (
 ) => Promise<Result<TResponse>>
 
 /**
+ * A successful page of results. `nextLink` is present when SharePoint has
+ * more items than it returned (it caps a response at `$top`, or 100 by
+ * default); pass it to {@link SiteConnection.getNextPage}, or use
+ * `getAllListContents` / `iterateListContents` to follow it automatically.
+ */
+export type Page<T> = Success<T[]> & { nextLink?: string }
+
+/** Result of a paged read: a {@link Page} or a {@link Failure}. */
+export type PageResult<T> = Page<T> | Failure
+
+/**
+ * A read action whose item type the caller chooses. The type parameter is an
+ * unchecked assertion — SharePoint's JSON is not validated against `T`.
+ *
+ * @example
+ * type Task = { Id: number; Title: string }
+ * const res = await connection.getListContents<Task>({ listName: 'Tasks' })
+ * if (res.success) res.data[0].Title // string
+ */
+export type PagedAction<TConfig> = <T = unknown>(
+  options: TConfig
+) => Promise<PageResult<T>>
+
+/** A single-item read action whose result type the caller chooses (unchecked). */
+export type TypedAction<TConfig> = <T = unknown>(
+  options: TConfig
+) => Promise<Result<T>>
+
+/**
+ * Yields one {@link PageResult} per request until SharePoint reports no more
+ * pages, `maxPages` is reached, or a page fails (the failure is yielded, then
+ * iteration ends). Never throws.
+ */
+export type PagedIterator<TConfig> = <T = unknown>(
+  options: TConfig
+) => AsyncGenerator<PageResult<T>, void, undefined>
+
+/**
+ * Opt-in retry for read actions. Writes are never retried automatically.
+ * Delays use exponential backoff with full jitter:
+ * `random(0, min(maxDelayMs, baseDelayMs * 2^attempt))`.
+ */
+export type RetryOptions = {
+  /** Extra attempts after the first failure. @defaultValue `2` */
+  retries?: number
+  /** Base delay in milliseconds. @defaultValue `200` */
+  baseDelayMs?: number
+  /** Upper bound on a single delay. @defaultValue `5000` */
+  maxDelayMs?: number
+  /**
+   * Decide whether a failed attempt should be retried. `attempt` is
+   * 1-based. The default retries `NETWORK`, `TIMEOUT`, and `HTTP` with status
+   * 429, 502, 503 or 504. `ABORTED` is never retried.
+   */
+  retryOn?: (failure: Failure, attempt: number) => boolean
+}
+
+/**
  * Connection and credential settings for an on-premises SharePoint site
  * (2013, 2016, 2019 or Subscription Edition). SharePoint Online is not
  * supported: it does not accept NTLM authentication.
@@ -105,6 +163,14 @@ export type SiteConnectionOptions = {
    * agentOptions: { ca: fs.readFileSync('corp-root-ca.pem') }
    */
   agentOptions?: AgentOptions
+  /**
+   * Retry transient failures on read actions (`get*`, `check*`,
+   * `iterate*`). Off unless set; `{}` enables the defaults. Write actions are
+   * never retried.
+   * @example
+   * retry: { retries: 3, baseDelayMs: 500 }
+   */
+  retry?: RetryOptions
 }
 
 /** Options accepted by every action in addition to its own parameters. */
@@ -240,6 +306,25 @@ export interface GetListContentsOptions extends RequestOptions {
    */
   params?: URLSearchParams
 }
+
+/** Options for following a {@link Page.nextLink}. */
+export interface GetNextPageOptions extends RequestOptions {
+  /** The `nextLink` from a previous page. Must point at the connection's own host. */
+  nextLink: string
+}
+
+/** Extra options for the `getAll*` and `iterate*` helpers. */
+export interface PagingOptions {
+  /**
+   * Stop after this many pages even if SharePoint reports more.
+   * @defaultValue unlimited
+   */
+  maxPages?: number
+}
+
+export type GetAllListContentsOptions = GetListContentsOptions & PagingOptions
+export type GetAllFolderContentsOptions = GetFolderContentsOptions &
+  PagingOptions
 
 export interface GetListItemOptions extends RequestOptions {
   /** List display title, as shown in the SharePoint UI (not the URL segment). */
@@ -380,8 +465,30 @@ export type SiteConnection = {
    *
    * @returns `data` is the OData `value` array; each element is a SharePoint
    *   `SP.File` object (`Name`, `ServerRelativeUrl`, `Length`, `TimeLastModified`, …).
+   *   `nextLink` is set when more files remain.
    */
-  getFolderContents: Action<GetFolderContentsOptions, unknown[]>
+  getFolderContents: PagedAction<GetFolderContentsOptions>
+  /**
+   * Like {@link SiteConnection.getFolderContents} but follows `nextLink`
+   * until every file is collected (or `maxPages` is reached).
+   *
+   * @returns `data` is every file; if any page fails, the whole call is that
+   *   `Failure` (no partial results).
+   */
+  getAllFolderContents: <T = unknown>(
+    options: GetAllFolderContentsOptions
+  ) => Promise<Result<T[]>>
+  /**
+   * Streams folder contents one page at a time. Yields each
+   * {@link PageResult}; ends after the last page or the first failure.
+   *
+   * @example
+   * for await (const page of connection.iterateFolderContents<SpFile>({ folder: 'Shared Documents' })) {
+   *   if (!page.success) throw new Error(page.error)
+   *   for (const file of page.data) console.log(file.Name)
+   * }
+   */
+  iterateFolderContents: PagedIterator<GetAllFolderContentsOptions>
   /**
    * Obtains a request digest, required as `requestDigest` by every write
    * action.
@@ -393,25 +500,58 @@ export type SiteConnection = {
    */
   getFormDigestValue: Action<RequestOptions, string>
   /**
-   * Queries list items.
+   * Queries one page of list items.
    *
    * `GET /_api/web/lists/GetByTitle('{listName}')/items?{params}`
    *
-   * @returns `data` is the OData `value` array. Narrow it to your item shape:
-   *   `res.data as MyItem[]`.
+   * @returns `data` is the OData `value` array, typed as `T[]` (unchecked).
+   *   `nextLink` is set when SharePoint has more items than it returned;
+   *   pass it to {@link SiteConnection.getNextPage}, or use
+   *   {@link SiteConnection.getAllListContents}.
    * @example
+   * type Task = { Id: number; Title: string }
    * const params = new URLSearchParams({ $select: 'Id,Title', $top: '500' })
-   * const res = await connection.getListContents({ listName: 'Tasks', params })
+   * const res = await connection.getListContents<Task>({ listName: 'Tasks', params })
    */
-  getListContents: Action<GetListContentsOptions, unknown[]>
+  getListContents: PagedAction<GetListContentsOptions>
+  /**
+   * Like {@link SiteConnection.getListContents} but follows `nextLink` until
+   * every item is collected (or `maxPages` is reached).
+   *
+   * @returns `data` is every item; if any page fails, the whole call is that
+   *   `Failure` (no partial results).
+   */
+  getAllListContents: <T = unknown>(
+    options: GetAllListContentsOptions
+  ) => Promise<Result<T[]>>
+  /**
+   * Streams list items one page at a time. Yields each {@link PageResult};
+   * ends after the last page or the first failure.
+   *
+   * @example
+   * for await (const page of connection.iterateListContents<Task>({ listName: 'Tasks' })) {
+   *   if (!page.success) throw new Error(page.error)
+   *   for (const task of page.data) console.log(task.Title)
+   * }
+   */
+  iterateListContents: PagedIterator<GetAllListContentsOptions>
+  /**
+   * Fetches the page a previous result's `nextLink` points at.
+   *
+   * `GET {nextLink}`
+   *
+   * The link must be on the connection's own host; anything else is rejected
+   * with a `Failure` so credentials are never sent elsewhere.
+   */
+  getNextPage: PagedAction<GetNextPageOptions>
   /**
    * Reads a single list item by `ID`.
    *
    * `GET /_api/web/lists/GetByTitle('{listName}')/items('{spId}')`
    *
-   * @returns `data` is the item object (`odata=nometadata`).
+   * @returns `data` is the item object (`odata=nometadata`), typed as `T` (unchecked).
    */
-  getListItem: Action<GetListItemOptions, unknown>
+  getListItem: TypedAction<GetListItemOptions>
   /**
    * Reads the list's entity type name, needed in `__metadata.type` when
    * creating or updating items.
@@ -432,6 +572,16 @@ export type SiteConnection = {
    */
   updateListItem: Action<UpdateListItemOptions, string>
 }
+
+/** Factory for a {@link PagedAction}. */
+export type PagedActionFactory<TConfig> = (
+  options: SiteConnectionOptions
+) => PagedAction<TConfig>
+
+/** Factory for a {@link TypedAction}. */
+export type TypedActionFactory<TConfig> = (
+  options: SiteConnectionOptions
+) => TypedAction<TConfig>
 
 /** Signature of `createSiteConnection`. */
 export type SiteConnectionFactory = (

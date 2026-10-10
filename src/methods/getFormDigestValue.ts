@@ -8,6 +8,7 @@ import os from 'os'
 import { post } from '../ntlm'
 import { encodePath, safeParseFormDigestValue } from '../utils'
 import { toFailure } from '../errors'
+import { withRetry } from '../retry'
 
 /**
  * Obtains the request digest required as `accessToken` by every write action.
@@ -25,6 +26,7 @@ export const getFormDigestValue: ActionFactory<RequestOptions, string> =
     protocol = 'https',
     domain = '',
     agentOptions,
+    retry,
     hostname = os.hostname(),
   }) =>
   async (optional) => {
@@ -45,11 +47,13 @@ export const getFormDigestValue: ActionFactory<RequestOptions, string> =
       ...optional,
     }
 
-    try {
-      const res = await post(config)
-      const result = safeParseFormDigestValue(res)
-      return result
-    } catch (error) {
-      return toFailure('getFormDigestValue', error)
-    }
+    return withRetry(retry, optional.signal, async () => {
+      try {
+        const res = await post(config)
+        const result = safeParseFormDigestValue(res)
+        return result
+      } catch (error) {
+        return toFailure('getFormDigestValue', error)
+      }
+    })
   }
