@@ -23,7 +23,7 @@
     "build": "tsup src/index.ts --format cjs,esm --dts",
     "lint": "tsc",
     "ci": "pnpm run lint && pnpm run test && pnpm run build",
-    "release": "pnpm run build && pnpm publish -r --no-git-checks"
+    "release": "pnpm run build && changeset publish"
   },
   "keywords": [
     "sharepoint",
