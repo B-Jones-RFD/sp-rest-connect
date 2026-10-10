@@ -1,5 +1,11 @@
 # @b-jones-rfd/sp-rest-connect
 
+## 3.0.0
+
+### Major Changes
+
+- bef5da3: folder is now resolved relative to serverRelativeUrl in addDocumentToLibrary, checkFolderExistsInLibrary and createFolderInLibrary, matching the other folder methods and the README. Callers that passed a full server-relative path to these three methods must drop the site prefix.
+
 ## 2.0.0
 
 ### Major Changes
