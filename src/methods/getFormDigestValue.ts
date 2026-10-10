@@ -6,7 +6,7 @@ import type {
 } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
-import { safeParseFormDigestValue } from '../utils'
+import { encodePath, safeParseFormDigestValue } from '../utils'
 
 /**
  * Obtains the request digest required as `accessToken` by every write action.
@@ -26,7 +26,7 @@ export const getFormDigestValue: ActionFactory<RequestOptions, string> =
     hostname = os.hostname(),
   }) =>
   async (optional) => {
-    const url = `${protocol}://${site + serverRelativeUrl}/_api/contextinfo`
+    const url = `${protocol}://${site + encodePath(serverRelativeUrl)}/_api/contextinfo`
 
     const config = {
       url,

@@ -63,26 +63,30 @@ export type SiteConnectionOptions = {
 export interface RequestOptions {
   /** Socket inactivity timeout in milliseconds. Omit for no timeout. */
   timeout?: number
-  /**
-   * Return the raw response body as a `Buffer` instead of a UTF-8 string.
-   * Only {@link SiteConnection.getDocumentFromLibrary} uses this (it defaults
-   * to `true` there). Every other action parses a string body, so setting
-   * `binary: true` on them yields a `Failure` of "Incorrect response format".
-   */
-  binary?: boolean
 }
 
-/** Options that require a request digest (needed for every write). */
-export interface AuthenticatedRequestOptions extends RequestOptions {
-  /**
-   * SharePoint request digest (`X-RequestDigest`) obtained from
-   * {@link SiteConnection.getFormDigestValue}. Digests expire (30 minutes by
-   * default); fetch a fresh one per batch of writes.
-   */
-  accessToken: string
-}
+/**
+ * Options for write actions. Supply the request digest from
+ * {@link SiteConnection.getFormDigestValue} as `requestDigest`. Digests expire
+ * (30 minutes by default); fetch a fresh one per batch of writes.
+ *
+ * `accessToken` is the pre-4.0 name for the same value and still works.
+ */
+export type AuthenticatedRequestOptions = RequestOptions &
+  (
+    | {
+        /** SharePoint request digest (`X-RequestDigest`) from {@link SiteConnection.getFormDigestValue}. */
+        requestDigest: string
+        accessToken?: undefined
+      }
+    | {
+        /** @deprecated Use `requestDigest`. Same value, clearer name. */
+        accessToken: string
+        requestDigest?: undefined
+      }
+  )
 
-export interface AddAttachmentToListItemOptions extends AuthenticatedRequestOptions {
+export type AddAttachmentToListItemOptions = AuthenticatedRequestOptions & {
   /** List display title, as shown in the SharePoint UI (not the URL segment). */
   listName: string
   /** Integer `ID` of the list item. */
@@ -93,7 +97,7 @@ export interface AddAttachmentToListItemOptions extends AuthenticatedRequestOpti
   payload: Buffer
 }
 
-export interface AddDocumentToLibraryOptions extends AuthenticatedRequestOptions {
+export type AddDocumentToLibraryOptions = AuthenticatedRequestOptions & {
   /**
    * Target folder path relative to `serverRelativeUrl`, starting with the
    * library name (e.g. `'Shared Documents/Reports'`).
@@ -105,7 +109,7 @@ export interface AddDocumentToLibraryOptions extends AuthenticatedRequestOptions
   payload: Buffer
 }
 
-export interface AddListItemOptions extends AuthenticatedRequestOptions {
+export type AddListItemOptions = AuthenticatedRequestOptions & {
   /** List display title, as shown in the SharePoint UI (not the URL segment). */
   listName: string
   /**
@@ -124,7 +128,7 @@ export interface CheckFolderExistsInLibraryOptions extends RequestOptions {
   folder: string
 }
 
-export interface CreateFolderInLibraryOptions extends AuthenticatedRequestOptions {
+export type CreateFolderInLibraryOptions = AuthenticatedRequestOptions & {
   /**
    * Folder path to create, relative to `serverRelativeUrl`
    * (e.g. `'Shared Documents/Reports/2026'`). The parent folder must exist.
@@ -132,14 +136,14 @@ export interface CreateFolderInLibraryOptions extends AuthenticatedRequestOption
   folder: string
 }
 
-export interface DeleteDocumentFromLibraryOptions extends AuthenticatedRequestOptions {
+export type DeleteDocumentFromLibraryOptions = AuthenticatedRequestOptions & {
   /** Folder containing the file, relative to `serverRelativeUrl`. */
   folder: string
   /** File name, including extension. */
   fileName: string
 }
 
-export interface DeleteListItemOptions extends AuthenticatedRequestOptions {
+export type DeleteListItemOptions = AuthenticatedRequestOptions & {
   /** List display title, as shown in the SharePoint UI (not the URL segment). */
   listName: string
   /** Integer `ID` of the list item. */
@@ -151,6 +155,13 @@ export interface GetDocumentFromLibraryOptions extends RequestOptions {
   folder: string
   /** File name, including extension. */
   fileName: string
+  /**
+   * Return the file as a `Buffer`. Setting this to `false` decodes the body as
+   * UTF-8 text, which fails the Buffer check and yields a `Failure`; there is
+   * no reason to change it.
+   * @defaultValue `true`
+   */
+  binary?: boolean
 }
 
 export interface GetFolderContentsOptions extends RequestOptions {
@@ -183,7 +194,7 @@ export interface GetListItemTypeOptions extends RequestOptions {
   listName: string
 }
 
-export interface UpdateListItemOptions extends AuthenticatedRequestOptions {
+export type UpdateListItemOptions = AuthenticatedRequestOptions & {
   /** List display title, as shown in the SharePoint UI (not the URL segment). */
   listName: string
   /** Integer `ID` of the list item. */
@@ -210,7 +221,7 @@ export type ActionFactory<TParams, TResponse> = (
  *
  * Read actions need only the connection. Write actions additionally need a
  * request digest from {@link SiteConnection.getFormDigestValue}, passed as
- * `accessToken`.
+ * `requestDigest`.
  */
 export type SiteConnection = {
   /**
@@ -244,7 +255,7 @@ export type SiteConnection = {
    * ])
    * if (!type.success || !digest.success) throw new Error('setup failed')
    * const created = await connection.addListItem({
-   *   accessToken: digest.data,
+   *   requestDigest: digest.data,
    *   listName: 'Tasks',
    *   payload: JSON.stringify({ __metadata: { type: type.data }, Title: 'Hello' }),
    * })
@@ -289,7 +300,7 @@ export type SiteConnection = {
    *
    * This is a low-level diagnostic: NTLM authenticates the TCP connection,
    * not the request, so the value cannot be reused for later requests. Use it
-   * to verify credentials, not to obtain an `accessToken` — that comes from
+   * to verify credentials, not to obtain a `requestDigest` — that comes from
    * {@link SiteConnection.getFormDigestValue}.
    *
    * @returns `data` is the `NTLM <base64>` header value.
@@ -313,7 +324,7 @@ export type SiteConnection = {
    */
   getFolderContents: Action<GetFolderContentsOptions, unknown[]>
   /**
-   * Obtains a request digest, required as `accessToken` by every write
+   * Obtains a request digest, required as `requestDigest` by every write
    * action.
    *
    * `POST /_api/contextinfo`

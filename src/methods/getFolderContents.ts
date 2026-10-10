@@ -6,7 +6,7 @@ import type {
 } from '../types'
 import os from 'os'
 import { get } from '../ntlm'
-import { safeParseResults } from '../utils'
+import { encodePath, odataPath, safeParseResults } from '../utils'
 
 /**
  * Lists the files directly inside a folder. Returns the OData `value` array.
@@ -30,8 +30,8 @@ export const getFolderContents: ActionFactory<
   }) =>
   async ({ folder, params, ...optional }) => {
     const baseUrl = `${protocol}://${
-      site + serverRelativeUrl
-    }/_api/web/GetFolderByServerRelativeUrl('${serverRelativeUrl}/${folder}')/Files`
+      site + encodePath(serverRelativeUrl)
+    }/_api/web/GetFolderByServerRelativeUrl('${odataPath(`${serverRelativeUrl}/${folder}`)}')/Files`
     const query = params?.toString()
     const url = query && query.length > 0 ? baseUrl + '?' + query : baseUrl
 

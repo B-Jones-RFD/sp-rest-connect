@@ -6,7 +6,7 @@ import type {
 } from '../types'
 import os from 'os'
 import { get } from '../ntlm'
-import { safeParseResults } from '../utils'
+import { encodePath, odataLiteral, safeParseResults } from '../utils'
 
 /**
  * Queries list items with optional OData `params`. Returns the OData `value` array.
@@ -30,8 +30,8 @@ export const getListContents: ActionFactory<
   }) =>
   async ({ listName, params = undefined, ...optional }) => {
     const baseUrl = `${protocol}://${
-      site + serverRelativeUrl
-    }/_api/web/lists/GetByTitle('${listName}')/items`
+      site + encodePath(serverRelativeUrl)
+    }/_api/web/lists/GetByTitle('${odataLiteral(listName)}')/items`
     const query = params?.toString()
     const url = query && query.length > 0 ? baseUrl + '?' + query : baseUrl
 

@@ -6,6 +6,7 @@ import type {
 } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
+import { encodePath, odataPath } from '../utils'
 
 /**
  * Deletes a file from a document library. Returns the deleted file name.
@@ -27,10 +28,10 @@ export const deleteDocumentFromLibrary: ActionFactory<
     domain = '',
     hostname = os.hostname(),
   }) =>
-  async ({ accessToken, folder, fileName, ...optional }) => {
+  async ({ accessToken, requestDigest, folder, fileName, ...optional }) => {
     const url = `${protocol}://${
-      site + serverRelativeUrl
-    }/_api/web/GetFileByServerRelativeUrl('${serverRelativeUrl}/${folder}/${fileName}')`
+      site + encodePath(serverRelativeUrl)
+    }/_api/web/GetFileByServerRelativeUrl('${odataPath(`${serverRelativeUrl}/${folder}/${fileName}`)}')`
 
     const config = {
       url,
@@ -39,7 +40,7 @@ export const deleteDocumentFromLibrary: ActionFactory<
       workstation: hostname,
       domain,
       headers: {
-        'X-RequestDigest': accessToken,
+        'X-RequestDigest': requestDigest ?? accessToken,
         'If-Match': '*',
         'X-HTTP-Method': 'DELETE',
       },

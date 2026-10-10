@@ -68,7 +68,7 @@ if (!type.success) throw new Error(type.error)
 if (!digest.success) throw new Error(digest.error)
 
 const created = await connection.addListItem({
-  accessToken: digest.data,
+  requestDigest: digest.data,
   listName: 'Invoices',
   payload: JSON.stringify({
     __metadata: { type: type.data },
@@ -125,8 +125,11 @@ e.g. `Error in getListContents: ...`.
 ### Write operations: the request digest
 
 SharePoint requires an `X-RequestDigest` header on every write. Obtain one
-with `getFormDigestValue()` and pass it as `accessToken` to any write action.
+with `getFormDigestValue()` and pass it as `requestDigest` to any write action.
 Digests expire (30 minutes by default), so fetch one per batch of writes.
+
+`accessToken` is the pre-4.0 name for the same option and is still accepted,
+but it is deprecated; new code should use `requestDigest`.
 
 `getAuthToken()` is **not** this value — it returns the NTLM handshake header,
 which is connection-bound and only useful as a credentials check.
@@ -156,48 +159,52 @@ library name: `'Shared Documents'`, `'Shared Documents/Reports/2026'`.
 
 ### Common options
 
-Every action also accepts:
+Every action accepts `timeout` (socket inactivity timeout in milliseconds;
+omit for no timeout). `getDocumentFromLibrary` additionally accepts `binary`
+(default `true`), which returns the file as a `Buffer`; there is no reason to
+turn it off.
 
-| Option    | Type      | Default | Description                                                                                                                                                                                 |
-| --------- | --------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `timeout` | `number`  | none    | Socket inactivity timeout in milliseconds.                                                                                                                                                  |
-| `binary`  | `boolean` | `false` | Return the raw body as a `Buffer` instead of a string. Only `getDocumentFromLibrary` uses this (default `true` there); other actions need a string body and will return a `Failure` if set. |
+### Special characters
+
+List titles, folder paths and file names are percent-encoded and have
+apostrophes doubled for OData automatically, so `"Bob's Tasks"` and
+`'Shared Documents/Q1 2026'` work as written.
 
 ## API
 
 All option types are exported (`AddListItemOptions`, `GetListContentsOptions`,
 …) and every member below is documented inline, so hovering in your editor
-shows the same details. `accessToken` means a digest from
+shows the same details. `requestDigest` means a digest from
 `getFormDigestValue`; `listName` is the list's display title.
 
 ### Lists
 
-| Action                                                                        | Required options                              | `data`                                                                 |
-| ----------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------- |
-| `getListContents({ listName, params? })`                                      | —                                             | `unknown[]` — OData `value` array. Without `$top` you get ≤ 100 items. |
-| `getListItem({ listName, spId })`                                             | —                                             | `unknown` — the item object.                                           |
-| `getListItemType({ listName })`                                               | —                                             | `string` — e.g. `'SP.Data.InvoicesListItem'`.                          |
-| `addListItem({ accessToken, listName, payload })`                             | `payload`: JSON string with `__metadata.type` | `string` — created item as raw JSON; `JSON.parse` for the new `Id`.    |
-| `updateListItem({ accessToken, listName, spId, patch })`                      | `patch`: JSON string with `__metadata.type`   | `string` — echoes `patch` (SharePoint returns no body).                |
-| `deleteListItem({ accessToken, listName, spId })`                             | —                                             | `''`                                                                   |
-| `addAttachmentToListItem({ accessToken, listName, spId, fileName, payload })` | `payload`: `Buffer`                           | `string` — server-relative URL of the attachment.                      |
+| Action                                                                          | Required options                              | `data`                                                                 |
+| ------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------- |
+| `getListContents({ listName, params? })`                                        | —                                             | `unknown[]` — OData `value` array. Without `$top` you get ≤ 100 items. |
+| `getListItem({ listName, spId })`                                               | —                                             | `unknown` — the item object.                                           |
+| `getListItemType({ listName })`                                                 | —                                             | `string` — e.g. `'SP.Data.InvoicesListItem'`.                          |
+| `addListItem({ requestDigest, listName, payload })`                             | `payload`: JSON string with `__metadata.type` | `string` — created item as raw JSON; `JSON.parse` for the new `Id`.    |
+| `updateListItem({ requestDigest, listName, spId, patch })`                      | `patch`: JSON string with `__metadata.type`   | `string` — echoes `patch` (SharePoint returns no body).                |
+| `deleteListItem({ requestDigest, listName, spId })`                             | —                                             | `''`                                                                   |
+| `addAttachmentToListItem({ requestDigest, listName, spId, fileName, payload })` | `payload`: `Buffer`                           | `string` — server-relative URL of the attachment.                      |
 
 ### Document libraries
 
-| Action                                                             | Required options    | `data`                                                     |
-| ------------------------------------------------------------------ | ------------------- | ---------------------------------------------------------- |
-| `getFolderContents({ folder, params? })`                           | —                   | `unknown[]` — `SP.File` objects (`Name`, `Length`, …).     |
-| `getDocumentFromLibrary({ folder, fileName })`                     | —                   | `Buffer` — file contents.                                  |
-| `checkFolderExistsInLibrary({ folder })`                           | —                   | `boolean` — a missing folder is a successful `false`.      |
-| `createFolderInLibrary({ accessToken, folder })`                   | parent must exist   | `string` — server-relative URL of the new folder.          |
-| `addDocumentToLibrary({ accessToken, folder, fileName, payload })` | `payload`: `Buffer` | `string` — server-relative URL; overwrites existing files. |
-| `deleteDocumentFromLibrary({ accessToken, folder, fileName })`     | —                   | `string` — the deleted `fileName`.                         |
+| Action                                                               | Required options    | `data`                                                     |
+| -------------------------------------------------------------------- | ------------------- | ---------------------------------------------------------- |
+| `getFolderContents({ folder, params? })`                             | —                   | `unknown[]` — `SP.File` objects (`Name`, `Length`, …).     |
+| `getDocumentFromLibrary({ folder, fileName })`                       | —                   | `Buffer` — file contents.                                  |
+| `checkFolderExistsInLibrary({ folder })`                             | —                   | `boolean` — a missing folder is a successful `false`.      |
+| `createFolderInLibrary({ requestDigest, folder })`                   | parent must exist   | `string` — server-relative URL of the new folder.          |
+| `addDocumentToLibrary({ requestDigest, folder, fileName, payload })` | `payload`: `Buffer` | `string` — server-relative URL; overwrites existing files. |
+| `deleteDocumentFromLibrary({ requestDigest, folder, fileName })`     | —                   | `string` — the deleted `fileName`.                         |
 
 ### Authentication
 
 | Action                   | `data`                                                                     |
 | ------------------------ | -------------------------------------------------------------------------- |
-| `getFormDigestValue({})` | `string` — request digest for `accessToken`.                               |
+| `getFormDigestValue({})` | `string` — request digest for `requestDigest`.                             |
 | `getAuthToken({})`       | `string` — NTLM Type 3 `Authorization` header. Diagnostic only; see above. |
 
 ### Low-level NTLM transport

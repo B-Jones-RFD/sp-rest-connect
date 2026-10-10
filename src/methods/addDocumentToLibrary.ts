@@ -6,7 +6,12 @@ import type {
 } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
-import { safeParseServerUrl } from '../utils'
+import {
+  encodePath,
+  odataLiteral,
+  odataPath,
+  safeParseServerUrl,
+} from '../utils'
 
 /**
  * Uploads a file to a document library folder (overwrites). Returns the file's server-relative URL.
@@ -28,10 +33,17 @@ export const addDocumentToLibrary: ActionFactory<
     domain = '',
     hostname = os.hostname(),
   }) =>
-  async ({ accessToken, folder, fileName, payload, ...optional }) => {
+  async ({
+    accessToken,
+    requestDigest,
+    folder,
+    fileName,
+    payload,
+    ...optional
+  }) => {
     const url = `${protocol}://${
-      site + serverRelativeUrl
-    }/_api/web/GetFolderByServerRelativeUrl('${serverRelativeUrl}/${folder}')/Files/add(url='${fileName}',overwrite=true)`
+      site + encodePath(serverRelativeUrl)
+    }/_api/web/GetFolderByServerRelativeUrl('${odataPath(`${serverRelativeUrl}/${folder}`)}')/Files/add(url='${odataLiteral(fileName)}',overwrite=true)`
 
     try {
       const config = {
@@ -44,7 +56,7 @@ export const addDocumentToLibrary: ActionFactory<
           Accept: 'application/json;odata=verbose',
           'Content-Type': 'application/json;odata=verbose',
           'Content-Length': payload.length,
-          'X-RequestDigest': accessToken,
+          'X-RequestDigest': requestDigest ?? accessToken,
         },
         body: payload,
         ...optional,

@@ -6,7 +6,7 @@ import type {
 } from '../types'
 import os from 'os'
 import { get } from '../ntlm'
-import { safeParseResult } from '../utils'
+import { encodePath, odataLiteral, safeParseResult } from '../utils'
 
 /**
  * Reads a single list item by ID.
@@ -27,8 +27,8 @@ export const getListItem: ActionFactory<GetListItemOptions, unknown> =
   }) =>
   async ({ listName, spId, ...optional }) => {
     const url = `${protocol}://${
-      site + serverRelativeUrl
-    }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
+      site + encodePath(serverRelativeUrl)
+    }/_api/web/lists/GetByTitle('${odataLiteral(listName)}')/items('${spId}')`
 
     const config = {
       url,

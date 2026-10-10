@@ -589,3 +589,73 @@ describe('createFolderInLibrary', () => {
     })
   })
 })
+
+describe('URL escaping', () => {
+  it('percent-encodes and doubles apostrophes in list titles', async () => {
+    const { sp, server } = await connect(json({ value: [] }))
+    await sp.getListContents({ listName: "Bob's Tasks #2" })
+    const leg = authenticatedLeg(server)
+    // Raw URL: apostrophe doubled per OData, space and # percent-encoded
+    expect(leg.url).toBe(
+      `${SITE_PATH}/_api/web/lists/GetByTitle('Bob''s%20Tasks%20%232')/items`
+    )
+  })
+
+  it('encodes folder and file names but preserves path separators', async () => {
+    const { sp, server } = await connect(json({ value: true }))
+    await sp.checkFolderExistsInLibrary({ folder: 'Shared Documents/Q1 2026' })
+    expect(authenticatedLeg(server).url).toBe(
+      `${SITE_PATH}/_api/web/GetFolderByServerRelativeUrl('${SITE_PATH}/Shared%20Documents/Q1%202026')/Exists`
+    )
+  })
+
+  it('encodes the file name in document URLs', async () => {
+    const { sp, server } = await connect(json({ value: [] }))
+    await sp.getDocumentFromLibrary({
+      folder: 'Docs',
+      fileName: "Mike's report 100%.pdf",
+    })
+    expect(authenticatedLeg(server).url).toBe(
+      `${SITE_PATH}/_api/web/GetFolderByServerRelativeUrl('${SITE_PATH}/Docs')/Files('Mike''s%20report%20100%25.pdf')/$value`
+    )
+  })
+
+  it('encodes spaces in serverRelativeUrl', async () => {
+    const { sp, server } = await connect(json({ value: [] }), {
+      serverRelativeUrl: '/sites/My Site',
+    })
+    await sp.getListContents({ listName: 'Tasks' })
+    expect(authenticatedLeg(server).url).toBe(
+      `/sites/My%20Site/_api/web/lists/GetByTitle('Tasks')/items`
+    )
+  })
+})
+
+describe('requestDigest alias', () => {
+  it('sends requestDigest as X-RequestDigest', async () => {
+    const { sp, server } = await connect(json({ d: { ID: 1 } }))
+    await sp.addListItem({
+      requestDigest: 'digest-new',
+      listName: 'Tasks',
+      payload: '{}',
+    })
+    expect(authenticatedLeg(server).headers['x-requestdigest']).toBe(
+      'digest-new'
+    )
+  })
+
+  it('still accepts the deprecated accessToken on every write action', async () => {
+    const { sp, server } = await connect((_req, res) => {
+      res.statusCode = 204
+      res.end()
+    })
+    await sp.deleteListItem({
+      accessToken: 'digest-old',
+      listName: 'T',
+      spId: 1,
+    })
+    expect(authenticatedLeg(server).headers['x-requestdigest']).toBe(
+      'digest-old'
+    )
+  })
+})

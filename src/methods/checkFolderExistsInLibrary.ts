@@ -6,7 +6,7 @@ import type {
 } from '../types'
 import os from 'os'
 import { get } from '../ntlm'
-import { safeParseFolderExists } from '../utils'
+import { encodePath, odataPath, safeParseFolderExists } from '../utils'
 
 /**
  * Checks whether a folder exists. A missing folder is a successful `false`.
@@ -30,8 +30,8 @@ export const checkFolderExistsInLibrary: ActionFactory<
   }) =>
   async ({ folder, ...optional }) => {
     const url = `${protocol}://${
-      site + serverRelativeUrl
-    }/_api/web/GetFolderByServerRelativeUrl('${serverRelativeUrl}/${folder}')/Exists`
+      site + encodePath(serverRelativeUrl)
+    }/_api/web/GetFolderByServerRelativeUrl('${odataPath(`${serverRelativeUrl}/${folder}`)}')/Exists`
 
     const config = {
       url,

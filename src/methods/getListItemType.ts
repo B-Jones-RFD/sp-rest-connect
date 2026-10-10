@@ -6,7 +6,7 @@ import type {
 } from '../types'
 import os from 'os'
 import { get } from '../ntlm'
-import { safeParseItemType } from '../utils'
+import { encodePath, odataLiteral, safeParseItemType } from '../utils'
 
 /**
  * Reads the list entity type name used in `__metadata.type` for creates and updates.
@@ -27,8 +27,8 @@ export const getListItemType: ActionFactory<GetListItemTypeOptions, string> =
   }) =>
   async ({ listName, ...optional }) => {
     const url = `${protocol}://${
-      site + serverRelativeUrl
-    }/_api/web/lists/GetByTitle('${listName}')?$select=ListItemEntityTypeFullName`
+      site + encodePath(serverRelativeUrl)
+    }/_api/web/lists/GetByTitle('${odataLiteral(listName)}')?$select=ListItemEntityTypeFullName`
 
     const config = {
       url,

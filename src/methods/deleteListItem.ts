@@ -6,6 +6,7 @@ import type {
 } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
+import { encodePath, odataLiteral } from '../utils'
 
 /**
  * Deletes a list item. Returns an empty string.
@@ -24,10 +25,10 @@ export const deleteListItem: ActionFactory<DeleteListItemOptions, string> =
     domain = '',
     hostname = os.hostname(),
   }) =>
-  async ({ accessToken, listName, spId, ...optional }) => {
+  async ({ accessToken, requestDigest, listName, spId, ...optional }) => {
     const url = `${protocol}://${
-      site + serverRelativeUrl
-    }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
+      site + encodePath(serverRelativeUrl)
+    }/_api/web/lists/GetByTitle('${odataLiteral(listName)}')/items('${spId}')`
 
     try {
       const config = {
@@ -39,7 +40,7 @@ export const deleteListItem: ActionFactory<DeleteListItemOptions, string> =
         headers: {
           Accept: 'application/json;odata=verbose',
           'Content-Type': 'application/json',
-          'X-RequestDigest': accessToken,
+          'X-RequestDigest': requestDigest ?? accessToken,
           'If-Match': '*',
           'X-HTTP-Method': 'DELETE',
         },

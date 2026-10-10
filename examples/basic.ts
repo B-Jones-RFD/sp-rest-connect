@@ -45,7 +45,7 @@ export async function createTask(title: string) {
   if (!digest.success) throw new Error(digest.error)
 
   const created = await connection.addListItem({
-    accessToken: digest.data,
+    requestDigest: digest.data,
     listName: 'Tasks',
     payload: JSON.stringify({ __metadata: { type: type.data }, Title: title }),
   })
@@ -59,7 +59,7 @@ export async function uploadReport(fileName: string, contents: Buffer) {
   if (!digest.success) throw new Error(digest.error)
 
   return connection.addDocumentToLibrary({
-    accessToken: digest.data,
+    requestDigest: digest.data,
     folder: 'Shared Documents/Reports',
     fileName,
     payload: contents,

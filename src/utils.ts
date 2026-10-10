@@ -14,6 +14,30 @@ export function failure(error: string): Failure {
   }
 }
 
+/**
+ * Escapes a value for use inside an OData string literal (`'...'`) in a URL
+ * path: apostrophes are doubled per OData and the result is percent-encoded.
+ * `encodeURIComponent` leaves `'` and `()` intact, so the doubled apostrophes
+ * survive encoding.
+ */
+export function odataLiteral(value: string): string {
+  return encodeURIComponent(value.replace(/'/g, "''"))
+}
+
+/**
+ * Escapes a server-relative path for use inside an OData string literal:
+ * each `/`-separated segment is treated with {@link odataLiteral} so slashes
+ * are preserved while spaces, `#`, `%`, `?` and apostrophes are not.
+ */
+export function odataPath(path: string): string {
+  return path.split('/').map(odataLiteral).join('/')
+}
+
+/** Percent-encodes each segment of a URL path, preserving the slashes. */
+export function encodePath(path: string): string {
+  return path.split('/').map(encodeURIComponent).join('/')
+}
+
 export function safeParseAuthToken(token: any): Result<string> {
   return typeof token !== 'string'
     ? failure('Incorrect token format')

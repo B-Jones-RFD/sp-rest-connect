@@ -6,7 +6,7 @@ import type {
 } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
-import { safeParseServerUrl } from '../utils'
+import { encodePath, safeParseServerUrl } from '../utils'
 
 /**
  * Creates a folder (parent must exist). Returns the folder's server-relative URL.
@@ -28,8 +28,8 @@ export const createFolderInLibrary: ActionFactory<
     domain = '',
     hostname = os.hostname(),
   }) =>
-  async ({ accessToken, folder, ...optional }) => {
-    const url = `${protocol}://${site + serverRelativeUrl}/_api/web/folders`
+  async ({ accessToken, requestDigest, folder, ...optional }) => {
+    const url = `${protocol}://${site + encodePath(serverRelativeUrl)}/_api/web/folders`
 
     const payload = JSON.stringify({
       ServerRelativeUrl: `${serverRelativeUrl}/${folder}`,
@@ -46,7 +46,7 @@ export const createFolderInLibrary: ActionFactory<
           Accept: 'application/json;odata=verbose',
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(payload),
-          'X-RequestDigest': accessToken,
+          'X-RequestDigest': requestDigest ?? accessToken,
         },
         body: payload,
         ...optional,

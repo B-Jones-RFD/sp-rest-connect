@@ -6,6 +6,7 @@ import type {
 } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
+import { encodePath, odataLiteral } from '../utils'
 
 /**
  * Partially updates a list item (OData MERGE, last write wins). Echoes back `patch`.
@@ -24,10 +25,17 @@ export const updateListItem: ActionFactory<UpdateListItemOptions, string> =
     domain = '',
     hostname = os.hostname(),
   }) =>
-  async ({ accessToken, listName, spId, patch, ...optional }) => {
+  async ({
+    accessToken,
+    requestDigest,
+    listName,
+    spId,
+    patch,
+    ...optional
+  }) => {
     const url = `${protocol}://${
-      site + serverRelativeUrl
-    }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')`
+      site + encodePath(serverRelativeUrl)
+    }/_api/web/lists/GetByTitle('${odataLiteral(listName)}')/items('${spId}')`
 
     try {
       const config = {
@@ -40,7 +48,7 @@ export const updateListItem: ActionFactory<UpdateListItemOptions, string> =
           Accept: 'application/json;odata=verbose',
           'Content-Type': 'application/json;odata=verbose',
           'Content-Length': Buffer.byteLength(patch),
-          'X-RequestDigest': accessToken,
+          'X-RequestDigest': requestDigest ?? accessToken,
           'If-Match': '*',
           'X-HTTP-Method': 'MERGE',
         },

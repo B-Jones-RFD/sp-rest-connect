@@ -6,7 +6,12 @@ import type {
 } from '../types'
 import os from 'os'
 import { get } from '../ntlm'
-import { safeParseDocument } from '../utils'
+import {
+  encodePath,
+  odataLiteral,
+  odataPath,
+  safeParseDocument,
+} from '../utils'
 
 /**
  * Downloads a file as a `Buffer`.
@@ -30,8 +35,8 @@ export const getDocumentFromLibrary: ActionFactory<
   }) =>
   async ({ folder, fileName, binary = true, ...optional }) => {
     const url = `${protocol}://${
-      site + serverRelativeUrl
-    }/_api/web/GetFolderByServerRelativeUrl('${serverRelativeUrl}/${folder}')/Files('${fileName}')/$value`
+      site + encodePath(serverRelativeUrl)
+    }/_api/web/GetFolderByServerRelativeUrl('${odataPath(`${serverRelativeUrl}/${folder}`)}')/Files('${odataLiteral(fileName)}')/$value`
 
     const config = {
       url,

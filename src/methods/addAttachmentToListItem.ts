@@ -6,7 +6,7 @@ import type {
 } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
-import { safeParseServerUrl } from '../utils'
+import { encodePath, odataLiteral, safeParseServerUrl } from '../utils'
 
 /**
  * Attaches a file to an existing list item. Returns the attachment's server-relative URL.
@@ -28,10 +28,18 @@ export const addAttachmentToListItem: ActionFactory<
     domain = '',
     hostname = os.hostname(),
   }) =>
-  async ({ accessToken, listName, spId, fileName, payload, ...optional }) => {
+  async ({
+    accessToken,
+    requestDigest,
+    listName,
+    spId,
+    fileName,
+    payload,
+    ...optional
+  }) => {
     const url = `${protocol}://${
-      site + serverRelativeUrl
-    }/_api/web/lists/GetByTitle('${listName}')/items('${spId}')/AttachmentFiles/add(FileName='${fileName}')`
+      site + encodePath(serverRelativeUrl)
+    }/_api/web/lists/GetByTitle('${odataLiteral(listName)}')/items('${spId}')/AttachmentFiles/add(FileName='${odataLiteral(fileName)}')`
 
     try {
       const config = {
@@ -44,7 +52,7 @@ export const addAttachmentToListItem: ActionFactory<
           Accept: 'application/json;odata=verbose',
           'Content-Type': 'application/json;odata=verbose',
           'Content-Length': payload.length,
-          'X-RequestDigest': accessToken,
+          'X-RequestDigest': requestDigest ?? accessToken,
         },
         body: payload,
         ...optional,

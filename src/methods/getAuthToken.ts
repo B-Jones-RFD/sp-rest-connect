@@ -6,7 +6,7 @@ import type {
 } from '../types'
 import os from 'os'
 import { auth } from '../ntlm'
-import { safeParseAuthToken } from '../utils'
+import { encodePath, safeParseAuthToken } from '../utils'
 
 /**
  * Runs the NTLM handshake and returns the Type 3 `Authorization` header value. Diagnostic only; this is NOT the `accessToken` for writes (see `getFormDigestValue`).
@@ -26,7 +26,7 @@ export const getAuthToken: ActionFactory<RequestOptions, string> =
     hostname = os.hostname(),
   }) =>
   async (optional) => {
-    const url = `${protocol}://${site + serverRelativeUrl}`
+    const url = `${protocol}://${site + encodePath(serverRelativeUrl)}`
 
     const config = {
       url,

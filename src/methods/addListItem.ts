@@ -6,6 +6,7 @@ import type {
 } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
+import { encodePath, odataLiteral } from '../utils'
 
 /**
  * Creates a list item. `payload` must be a JSON string including `__metadata.type` from `getListItemType`. Returns the created item as a raw JSON string.
@@ -24,10 +25,10 @@ export const addListItem: ActionFactory<AddListItemOptions, string> =
     domain = '',
     hostname = os.hostname(),
   }) =>
-  async ({ accessToken, listName, payload, ...optional }) => {
+  async ({ accessToken, requestDigest, listName, payload, ...optional }) => {
     const url = `${protocol}://${
-      site + serverRelativeUrl
-    }/_api/web/lists/GetByTitle('${listName}')/items`
+      site + encodePath(serverRelativeUrl)
+    }/_api/web/lists/GetByTitle('${odataLiteral(listName)}')/items`
 
     try {
       const config = {
@@ -40,7 +41,7 @@ export const addListItem: ActionFactory<AddListItemOptions, string> =
           Accept: 'application/json;odata=nometadata',
           'Content-Type': 'application/json;odata=verbose',
           'Content-Length': Buffer.byteLength(payload),
-          'X-RequestDigest': accessToken,
+          'X-RequestDigest': requestDigest ?? accessToken,
         },
         body: payload,
         ...optional,
