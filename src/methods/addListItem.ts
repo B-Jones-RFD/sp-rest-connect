@@ -36,7 +36,7 @@ export const addListItem: ActionFactory<
         headers: {
           Accept: 'application/json;odata=nometadata',
           'Content-Type': 'application/json;odata=verbose',
-          'Content-Length': payload.length,
+          'Content-Length': Buffer.byteLength(payload),
           'X-RequestDigest': accessToken,
         },
         body: payload,

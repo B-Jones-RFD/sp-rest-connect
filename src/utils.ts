@@ -42,19 +42,18 @@ export function safeParseItemType(res: any): Result<string> {
   if (typeof res !== 'string') return failure('Incorrect response format')
   try {
     const parsed = JSON.parse(res)
-    const results = parsed
     if (!parsed.ListItemEntityTypeFullName)
       return failure('ListItemEntityTypeFullName not in response')
-    return results.ListItemEntityTypeFullName &&
-      typeof results.ListItemEntityTypeFullName === 'string'
-      ? success(results.ListItemEntityTypeFullName)
+    const itemType = parsed.ListItemEntityTypeFullName
+    return typeof itemType === 'string'
+      ? success(itemType)
       : failure('Item type not returned')
   } catch (error) {
     return failure(`Unable to parse ${res}`)
   }
 }
 
-export function safeParseResults<T>(res: any): Result<unknown[]> {
+export function safeParseResults(res: any): Result<unknown[]> {
   if (typeof res !== 'string') return failure('Incorrect response format')
   try {
     const parsed = JSON.parse(res)
@@ -84,13 +83,16 @@ export function safeParseDocument(res: any): Result<Buffer> {
     : failure('Incorrect response format')
 }
 
-export function safeParseId(res: any): Result<unknown[]> {
+export function safeParseId(res: any): Result<number> {
   if (typeof res !== 'string') return failure('Incorrect response format')
   try {
     const parsed = JSON.parse(res)
-    if (!parsed.d?.ID) return failure('ID not in response')
+    if (parsed.d?.ID === undefined || parsed.d?.ID === null)
+      return failure('ID not in response')
     const id = parsed.d.ID
-    return success<unknown[]>(id)
+    return typeof id === 'number'
+      ? success(id)
+      : failure('Invalid ID type returned')
   } catch (error) {
     return failure(`Unable to parse ${res}`)
   }
@@ -115,7 +117,8 @@ export function safeParseFolderExists(res: any): Result<boolean> {
   if (typeof res !== 'string') return failure('Incorrect response format')
   try {
     const parsed = JSON.parse(res)
-    if (!parsed.value) return failure('Exists value not in response')
+    if (parsed.value === undefined || parsed.value === null)
+      return failure('Exists value not in response')
     const exists = parsed.value
     return typeof exists === 'boolean'
       ? success(exists)

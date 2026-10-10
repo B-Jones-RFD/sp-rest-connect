@@ -51,7 +51,7 @@ export const addAttachmentToListItem: ActionFactory<
     } catch (error) {
       return {
         success: false,
-        error: `Error in addAttachmentToList: ${error}`,
+        error: `Error in addAttachmentToListItem: ${error}`,
       }
     }
   }

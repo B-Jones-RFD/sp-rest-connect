@@ -3,9 +3,9 @@
 [![npm bundle size](https://img.shields.io/bundlephobia/min/%40b-jones-rfd%2Fsp-rest-connect)](https://bundlephobia.com/package/@b-jones-rfd/sp-rest-connect)
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
 
-# Sharepoint REST Connect
+# SharePoint REST Connect
 
-Use SharePoint Rest Services to interact with lists and document libraries. I got tired of rewriting these for work projects. Still building and not ready for use.
+Use SharePoint REST Services to interact with lists and document libraries. I got tired of rewriting these for work projects.
 
 ## Prerequisites
 
@@ -20,20 +20,20 @@ $ npm -v && node -v
 v20.11.1
 ```
 
-[PNPM] (https://pnpm.io/) is a awesome alternative to NPM and is recommended.
+[PNPM](https://pnpm.io/) is an awesome alternative to NPM and is recommended.
 
 ## Table of contents
 
-- [SP REST Connect](#sp-rest-connect)
+- [SharePoint REST Connect](#sharepoint-rest-connect)
   - [Prerequisites](#prerequisites)
   - [Table of contents](#table-of-contents)
   - [Getting Started](#getting-started)
   - [Installation](#installation)
   - [Usage](#usage)
   - [API](#api)
-    - [createSiteConnection](#createSiteConnection)
+    - [createSiteConnection](#createsiteconnection)
     - [Actions](#actions)
-    - [Responses](#responses)
+  - [Responses](#responses)
   - [Contributing](#contributing)
   - [Versioning](#versioning)
   - [Authors](#authors)
@@ -41,7 +41,7 @@ v20.11.1
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
 
 ## Installation
 
@@ -69,10 +69,11 @@ $ pnpm add @b-jones-rfd/sp-rest-connect
 
 ### Instance Methods
 
-Actions can be performed against site collection lists or document libraries using instance methods on a SiteCollection instance.
+Actions can be performed against site collection lists or document libraries using instance methods on a SiteConnection instance.
 
 ```ts
 import { createSiteConnection } from '@b-jones-rfd/sp-rest-connect'
+import type { SiteConnection } from '@b-jones-rfd/sp-rest-connect'
 
 const siteConnectionOptions = {
   username: 'tim',
@@ -103,8 +104,9 @@ Additionally, for single use or reduced import size, action factory methods can 
 ```ts
 import { getListContents } from '@b-jones-rfd/sp-rest-connect'
 
+// siteConnectionOptions and params as defined above
 async function getMyListUsingAction(listName: string) {
-  const action = getListContents(connectionOpts)
+  const action = getListContents(siteConnectionOptions)
   const contents = await action({ listName, params })
   if (contents.success) return contents.data
   else throw new Error(contents.error)
@@ -143,9 +145,9 @@ async function getMyListUsingAction(listName: string) {
 
 `protocol`
 
-| Type   | Default value | Options          | Description   | Required |
-| ------ | ------------- | ---------------- | ------------- | -------- |
-| string | 'https'       | 'http' or 'http' | Site protocol | N        |
+| Type   | Default value | Options           | Description   | Required |
+| ------ | ------------- | ----------------- | ------------- | -------- |
+| string | 'https'       | 'https' or 'http' | Site protocol | N        |
 
 `domain`
 
@@ -255,7 +257,7 @@ If using the actions directly call the factory method with a SiteConnectionOptio
 | timeout     | number  | Request timeout (milliseconds) | N        | 0       |
 | binary      | boolean | Stream response                | N        | false   |
 
-#### getAuthToken()
+#### getAuthToken(options)
 
 `options`
 
@@ -264,7 +266,7 @@ If using the actions directly call the factory method with a SiteConnectionOptio
 | timeout  | number  | Request timeout (milliseconds) | N        | 0       |
 | binary   | boolean | Stream response                | N        | false   |
 
-#### getFormDigestValue()
+#### getFormDigestValue(options)
 
 `options`
 
@@ -284,6 +286,17 @@ If using the actions directly call the factory method with a SiteConnectionOptio
 | timeout  | number  | Request timeout (milliseconds) | N        | 0       |
 | binary   | boolean | Stream response                | N        | true    |
 
+#### getFolderContents(options)
+
+`options`
+
+| Property | Type            | Description                      | Required | Default |
+| -------- | --------------- | -------------------------------- | -------- | ------- |
+| folder   | string          | SharePoint folder/subfolder name | Y        |         |
+| params   | URLSearchParams | OData query parameters           | N        |         |
+| timeout  | number          | Request timeout (milliseconds)   | N        | 0       |
+| binary   | boolean         | Stream response                  | N        | false   |
+
 #### getListContents(options)
 
 `options`
@@ -291,7 +304,7 @@ If using the actions directly call the factory method with a SiteConnectionOptio
 | Property | Type            | Description                    | Required | Default |
 | -------- | --------------- | ------------------------------ | -------- | ------- |
 | listName | string          | SharePoint list name           | Y        |         |
-| params   | UrlSearchParams | SharePoint list name           | N        |         |
+| params   | URLSearchParams | OData query parameters         | N        |         |
 | timeout  | number          | Request timeout (milliseconds) | N        | 0       |
 | binary   | boolean         | Stream response                | N        | false   |
 
@@ -355,7 +368,7 @@ type Failure = { success: false; error: string }
 
 ## Contributing
 
-This is a pet project to save me time at work. It is still under development and not ready for use.
+This is a pet project to save me time at work.
 
 ## Versioning
 

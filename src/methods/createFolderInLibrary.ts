@@ -33,7 +33,7 @@ export const createFolderInLibrary: ActionFactory<
         headers: {
           Accept: 'application/json;odata=verbose',
           'Content-Type': 'application/json',
-          'Content-Length': payload.length,
+          'Content-Length': Buffer.byteLength(payload),
           'X-RequestDigest': accessToken,
         },
         body: payload,

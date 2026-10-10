@@ -14,7 +14,7 @@ export type SiteConnectionOptions = {
   site: string
   serverRelativeUrl: string
   protocol?: 'https' | 'http'
-  domain?: string | ''
+  domain?: string
   hostname?: string
 }
 

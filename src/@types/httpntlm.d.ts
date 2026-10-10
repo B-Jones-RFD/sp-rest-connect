@@ -40,7 +40,7 @@ declare module 'httpntlm' {
     headers: object
     statusCode: number
     body: Buffer | unknown
-    cookies?: Array<String>
+    cookies?: Array<string>
   }
 
   export function get(

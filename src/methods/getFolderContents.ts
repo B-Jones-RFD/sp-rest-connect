@@ -2,7 +2,6 @@ import type { ActionFactory } from '../types'
 import os from 'os'
 import { get } from '../ntlm'
 import { safeParseResults } from '../utils'
-import { URLSearchParams } from 'url'
 
 export const getFolderContents: ActionFactory<
   {

@@ -1,4 +1,4 @@
-# @b-jones-rfd/npm-rest-connect
+# @b-jones-rfd/sp-rest-connect
 
 ## 1.0.7
 
@@ -124,7 +124,7 @@
 
 ### Patch Changes
 
-- aeabde7: Moved httpnltm to peerDependency removed logging
+- aeabde7: Moved httpntlm to peerDependency removed logging
 
 ## 0.4.0
 
@@ -173,7 +173,7 @@
 
 ### Minor Changes
 
-- 8991959: Updated APi to export factory methods and added unit tests for utils
+- 8991959: Updated API to export factory methods and added unit tests for utils
 
 ## 0.2.0
 

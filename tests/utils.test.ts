@@ -216,6 +216,17 @@ describe('safeParseId', () => {
     expect(parsed).toStrictEqual(expected)
   })
 
+  it('should fail when ID is not a number', () => {
+    const res = JSON.stringify({
+      d: {
+        ID: '1',
+      },
+    })
+    const expected = failure('Invalid ID type returned')
+    const parsed = safeParseId(res)
+    expect(parsed).toStrictEqual(expected)
+  })
+
   it('should fail with invalid JSON', () => {
     const res = '{d: 1'
     const expected = failure('Unable to parse {d: 1')
@@ -326,6 +337,13 @@ describe('safeParseFolderExists', () => {
   it('should fail with invalid response type', () => {
     const res = fixture
     const expected = formatError
+    const parsed = safeParseFolderExists(res)
+    expect(parsed).toStrictEqual(expected)
+  })
+
+  it('should pass when folder does not exist', () => {
+    const res = JSON.stringify({ value: false })
+    const expected = success(false)
     const parsed = safeParseFolderExists(res)
     expect(parsed).toStrictEqual(expected)
   })

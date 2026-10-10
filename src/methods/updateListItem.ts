@@ -37,7 +37,7 @@ export const updateListItem: ActionFactory<
         headers: {
           Accept: 'application/json;odata=verbose',
           'Content-Type': 'application/json;odata=verbose',
-          'Content-Length': patch.length,
+          'Content-Length': Buffer.byteLength(patch),
           'X-RequestDigest': accessToken,
           'If-Match': '*',
           'X-HTTP-Method': 'MERGE',

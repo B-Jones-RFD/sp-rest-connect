@@ -40,7 +40,7 @@ export const getListItemType: ActionFactory<
     } catch (error) {
       return {
         success: false,
-        error: `Error in getListMetadata: ${error}`,
+        error: `Error in getListItemType: ${error}`,
       }
     }
   }
