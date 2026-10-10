@@ -354,6 +354,9 @@ apostrophes doubled for OData automatically, so `"Bob's Tasks"` and
 
 ## API
 
+Full generated reference:
+**[b-jones-rfd.github.io/sp-rest-connect](https://b-jones-rfd.github.io/sp-rest-connect/)**.
+
 All option types are exported (`AddListItemOptions`, `GetListContentsOptions`,
 …) and every member below is documented inline, so hovering in your editor
 shows the same details. Every write action also accepts the common
@@ -428,7 +431,8 @@ at [github.com/B-Jones-RFD/sp-rest-connect](https://github.com/B-Jones-RFD/sp-re
 ```sh
 pnpm install
 pnpm dev        # vitest in watch mode
-pnpm ci         # lint, test, build
+pnpm ci         # lint, test, build, package checks
+pnpm docs       # generate the API reference into docs/
 pnpm changeset  # describe your change for the release notes
 ```
 
