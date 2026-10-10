@@ -1,5 +1,11 @@
 # @b-jones-rfd/sp-rest-connect
 
+## 3.1.0
+
+### Minor Changes
+
+- 756639a: Export named option types for every action, add JSDoc across the public API, add exports map and sideEffects: false, rewrite README (request-digest flow, return values, folder semantics), replace broken Bundlephobia badge.
+
 ## 3.0.0
 
 ### Major Changes
