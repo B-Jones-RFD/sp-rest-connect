@@ -1,5 +1,11 @@
 # @b-jones-rfd/sp-rest-connect
 
+## 4.2.0
+
+### Minor Changes
+
+- fc36ffd: Typed reads, paging helpers, and opt-in retry.- **Type parameters on reads.** `getListContents<T>`, `getFolderContents<T>` and `getListItem<T>` return `T[]` / `T` instead of `unknown`. The default is still `unknown`, so existing code compiles unchanged.- **Paging.** A successful `getListContents` / `getFolderContents` result now carries `nextLink` when SharePoint has more items. New actions follow it: `getNextPage({ nextLink })` (same-origin links only), `getAllListContents` / `getAllFolderContents` (every page in one array; a failed page fails the whole call), and `iterateListContents` / `iterateFolderContents` (async iterators yielding one `PageResult` per page). All accept `maxPages`.- **Retry.** `SiteConnectionOptions.retry` enables exponential-backoff retry (full jitter) of read actions that fail with `NETWORK`, `TIMEOUT`, or HTTP 429/502/503/504. Writes are never retried. `isTransientFailure` is exported as the default predicate.- New exported types: `Page`, `PageResult`, `PagedAction`, `TypedAction`, `PagedIterator`, `RetryOptions`, `GetNextPageOptions`, `PagingOptions`, `GetAllListContentsOptions`, `GetAllFolderContentsOptions`.
+
 ## 4.1.0
 
 ### Minor Changes
