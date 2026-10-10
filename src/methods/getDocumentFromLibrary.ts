@@ -12,6 +12,7 @@ import {
   odataPath,
   safeParseDocument,
 } from '../utils'
+import { toFailure } from '../errors'
 
 /**
  * Downloads a file as a `Buffer`.
@@ -31,6 +32,7 @@ export const getDocumentFromLibrary: ActionFactory<
     password,
     protocol = 'https',
     domain = '',
+    agentOptions,
     hostname = os.hostname(),
   }) =>
   async ({ folder, fileName, binary = true, ...optional }) => {
@@ -44,6 +46,7 @@ export const getDocumentFromLibrary: ActionFactory<
       password,
       workstation: hostname,
       domain,
+      agentOptions,
       headers: {
         Accept: 'application/json; odata=verbose',
       },
@@ -56,9 +59,6 @@ export const getDocumentFromLibrary: ActionFactory<
       const document = safeParseDocument(res)
       return document
     } catch (error) {
-      return {
-        success: false,
-        error: `Error in getDocumentFromLibrary: ${error}`,
-      }
+      return toFailure('getDocumentFromLibrary', error)
     }
   }

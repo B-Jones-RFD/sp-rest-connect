@@ -7,6 +7,7 @@ import type {
 import os from 'os'
 import { get } from '../ntlm'
 import { encodePath, odataPath, safeParseResults } from '../utils'
+import { toFailure } from '../errors'
 
 /**
  * Lists the files directly inside a folder. Returns the OData `value` array.
@@ -26,6 +27,7 @@ export const getFolderContents: ActionFactory<
     password,
     protocol = 'https',
     domain = '',
+    agentOptions,
     hostname = os.hostname(),
   }) =>
   async ({ folder, params, ...optional }) => {
@@ -41,6 +43,7 @@ export const getFolderContents: ActionFactory<
       password,
       workstation: hostname,
       domain,
+      agentOptions,
       headers: {
         Accept: 'application/json; odata=nometadata',
       },
@@ -52,9 +55,6 @@ export const getFolderContents: ActionFactory<
       const results = safeParseResults(res)
       return results
     } catch (error) {
-      return {
-        success: false,
-        error: `Error in getFolderContents: ${error}`,
-      }
+      return toFailure('getFolderContents', error)
     }
   }

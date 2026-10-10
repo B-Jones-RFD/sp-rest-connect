@@ -7,6 +7,7 @@ import type {
 import os from 'os'
 import { post } from '../ntlm'
 import { encodePath, odataLiteral } from '../utils'
+import { toFailure } from '../errors'
 
 /**
  * Partially updates a list item (OData MERGE, last write wins). Echoes back `patch`.
@@ -23,6 +24,7 @@ export const updateListItem: ActionFactory<UpdateListItemOptions, string> =
     password,
     protocol = 'https',
     domain = '',
+    agentOptions,
     hostname = os.hostname(),
   }) =>
   async ({
@@ -44,6 +46,7 @@ export const updateListItem: ActionFactory<UpdateListItemOptions, string> =
         password,
         workstation: hostname,
         domain,
+        agentOptions,
         headers: {
           Accept: 'application/json;odata=verbose',
           'Content-Type': 'application/json;odata=verbose',
@@ -62,9 +65,6 @@ export const updateListItem: ActionFactory<UpdateListItemOptions, string> =
         data: patch,
       }
     } catch (error) {
-      return {
-        success: false,
-        error: `Error in updateListItem: ${error}`,
-      }
+      return toFailure('updateListItem', error)
     }
   }

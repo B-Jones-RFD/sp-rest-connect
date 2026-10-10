@@ -7,6 +7,7 @@ import type {
 import os from 'os'
 import { post } from '../ntlm'
 import { encodePath, odataPath } from '../utils'
+import { toFailure } from '../errors'
 
 /**
  * Deletes a file from a document library. Returns the deleted file name.
@@ -26,6 +27,7 @@ export const deleteDocumentFromLibrary: ActionFactory<
     password,
     protocol = 'https',
     domain = '',
+    agentOptions,
     hostname = os.hostname(),
   }) =>
   async ({ accessToken, requestDigest, folder, fileName, ...optional }) => {
@@ -39,6 +41,7 @@ export const deleteDocumentFromLibrary: ActionFactory<
       password,
       workstation: hostname,
       domain,
+      agentOptions,
       headers: {
         'X-RequestDigest': requestDigest ?? accessToken,
         'If-Match': '*',
@@ -54,9 +57,6 @@ export const deleteDocumentFromLibrary: ActionFactory<
         data: fileName,
       }
     } catch (error) {
-      return {
-        success: false,
-        error: `Error in deleteDocumentFromLibrary: ${error}`,
-      }
+      return toFailure('deleteDocumentFromLibrary', error)
     }
   }

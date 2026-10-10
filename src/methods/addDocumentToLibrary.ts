@@ -12,6 +12,7 @@ import {
   odataPath,
   safeParseServerUrl,
 } from '../utils'
+import { toFailure } from '../errors'
 
 /**
  * Uploads a file to a document library folder (overwrites). Returns the file's server-relative URL.
@@ -31,6 +32,7 @@ export const addDocumentToLibrary: ActionFactory<
     password,
     protocol = 'https',
     domain = '',
+    agentOptions,
     hostname = os.hostname(),
   }) =>
   async ({
@@ -52,6 +54,7 @@ export const addDocumentToLibrary: ActionFactory<
         password,
         workstation: hostname,
         domain,
+        agentOptions,
         headers: {
           Accept: 'application/json;odata=verbose',
           'Content-Type': 'application/json;odata=verbose',
@@ -65,9 +68,6 @@ export const addDocumentToLibrary: ActionFactory<
       const result = safeParseServerUrl(res)
       return result
     } catch (error) {
-      return {
-        success: false,
-        error: `Error in addDocumentToLibrary: ${error}`,
-      }
+      return toFailure('addDocumentToLibrary', error)
     }
   }

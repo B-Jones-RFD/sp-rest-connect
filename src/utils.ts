@@ -1,4 +1,4 @@
-import type { Failure, Result, Success } from './types'
+import type { Failure, FailureCode, Result, Success } from './types'
 
 export function success<T>(data: T): Success<T> {
   return {
@@ -7,10 +7,15 @@ export function success<T>(data: T): Success<T> {
   }
 }
 
-export function failure(error: string): Failure {
+/**
+ * Builds a {@link Failure}. Defaults to code `PARSE`, which is what every
+ * `safeParse*` helper in this module reports.
+ */
+export function failure(error: string, code: FailureCode = 'PARSE'): Failure {
   return {
     success: false,
     error,
+    code,
   }
 }
 

@@ -25,6 +25,16 @@ export interface NtlmRequestOptions extends NtlmCredentials {
   binary?: boolean
   /** Socket inactivity timeout in milliseconds. */
   timeout?: number
+  /** Cancels the request; rejects with an `AbortError`. */
+  signal?: AbortSignal
+  /** Extra agent options (TLS, DNS, local address). `keepAlive`/`maxSockets` are fixed. */
+  agentOptions?: https.AgentOptions
+}
+
+/** Raised when the socket is idle for longer than `timeout`. */
+export class TimeoutError extends Error {
+  readonly name = 'TimeoutError'
+  readonly code = 'ETIMEDOUT'
 }
 
 export interface NtlmResponse {
@@ -64,7 +74,8 @@ function send(
   method: string,
   headers: OutgoingHttpHeaders,
   body: string | Buffer | undefined,
-  timeout: number | undefined
+  timeout: number | undefined,
+  signal: AbortSignal | undefined
 ): Promise<RawResponse> {
   return new Promise((resolve, reject) => {
     const payload =
@@ -78,22 +89,28 @@ function send(
       headers['Content-Length'] = payload ? payload.length : 0
     }
 
-    const req = client.request(url, { method, headers, agent }, (res) => {
-      const chunks: Buffer[] = []
-      res.on('data', (chunk: Buffer) => chunks.push(chunk))
-      res.on('error', reject)
-      res.on('end', () =>
-        resolve({
-          statusCode: res.statusCode ?? 0,
-          headers: res.headers,
-          body: Buffer.concat(chunks),
-        })
-      )
-    })
+    const req = client.request(
+      url,
+      { method, headers, agent, signal },
+      (res) => {
+        const chunks: Buffer[] = []
+        res.on('data', (chunk: Buffer) => chunks.push(chunk))
+        res.on('error', reject)
+        res.on('end', () =>
+          resolve({
+            statusCode: res.statusCode ?? 0,
+            headers: res.headers,
+            body: Buffer.concat(chunks),
+          })
+        )
+      }
+    )
 
     if (timeout !== undefined) {
       req.setTimeout(timeout, () => {
-        req.destroy(new Error(`Request timed out after ${timeout}ms: ${url}`))
+        req.destroy(
+          new TimeoutError(`Request timed out after ${timeout}ms: ${url}`)
+        )
       })
     }
 
@@ -112,7 +129,11 @@ interface Session {
 function openSession(options: NtlmRequestOptions): Session {
   const url = new URL(options.url)
   const client = url.protocol === 'http:' ? http : https
-  const agent = new client.Agent({ keepAlive: true, maxSockets: 1 })
+  const agent = new client.Agent({
+    ...options.agentOptions,
+    keepAlive: true,
+    maxSockets: 1,
+  })
   const credentials: NtlmCredentials = {
     username: options.username,
     password: options.password,
@@ -131,7 +152,8 @@ function openSession(options: NtlmRequestOptions): Session {
 async function negotiate(
   session: Session,
   method: string,
-  timeout: number | undefined
+  timeout: number | undefined,
+  signal: AbortSignal | undefined
 ): Promise<{ challenge: RawResponse; type3?: string }> {
   const challenge = await send(
     session.client,
@@ -143,7 +165,8 @@ async function negotiate(
       Authorization: createType1Message(session.credentials),
     },
     undefined,
-    timeout
+    timeout,
+    signal
   )
 
   if (challenge.statusCode !== 401) return { challenge }
@@ -172,7 +195,8 @@ export async function request(
     const { challenge, type3 } = await negotiate(
       session,
       method,
-      options.timeout
+      options.timeout,
+      options.signal
     )
 
     let final: RawResponse = challenge
@@ -190,7 +214,8 @@ export async function request(
           Authorization: type3,
         },
         options.body,
-        options.timeout
+        options.timeout,
+        options.signal
       )
     }
 
@@ -217,7 +242,8 @@ export async function authenticate(
     const { challenge, type3 } = await negotiate(
       session,
       'GET',
-      options.timeout
+      options.timeout,
+      options.signal
     )
     if (type3 === undefined) {
       throw new Error(

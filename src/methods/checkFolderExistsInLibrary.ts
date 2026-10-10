@@ -7,6 +7,7 @@ import type {
 import os from 'os'
 import { get } from '../ntlm'
 import { encodePath, odataPath, safeParseFolderExists } from '../utils'
+import { toFailure } from '../errors'
 
 /**
  * Checks whether a folder exists. A missing folder is a successful `false`.
@@ -26,6 +27,7 @@ export const checkFolderExistsInLibrary: ActionFactory<
     password,
     protocol = 'https',
     domain = '',
+    agentOptions,
     hostname = os.hostname(),
   }) =>
   async ({ folder, ...optional }) => {
@@ -39,6 +41,7 @@ export const checkFolderExistsInLibrary: ActionFactory<
       password,
       workstation: hostname,
       domain,
+      agentOptions,
       headers: {
         Accept: 'application/json; odata=nometadata',
       },
@@ -50,9 +53,6 @@ export const checkFolderExistsInLibrary: ActionFactory<
       const results = safeParseFolderExists(res)
       return results
     } catch (error) {
-      return {
-        success: false,
-        error: `Error in checkFolderExistsInLibrary: ${error}`,
-      }
+      return toFailure('checkFolderExistsInLibrary', error)
     }
   }

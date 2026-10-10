@@ -15,7 +15,7 @@ I got tired of rewriting these for work projects.
 
 ## Requirements
 
-- **Node.js 22 or later.**
+- **Node.js 20 or later.**
 - **On-premises SharePoint** — 2013, 2016, 2019 or Subscription Edition — with
   NTLM authentication enabled. SharePoint Online is **not** supported; it does
   not accept NTLM.
@@ -87,17 +87,21 @@ More examples, including document upload, are in [`examples/basic.ts`](examples/
 
 `createSiteConnection(options)` binds every action to one site and returns a
 `SiteConnection`. Creating a connection performs no network I/O; credentials
-are captured in closures and used on each call.
+are captured in closures and used on each call. It does check the shape of the
+options and throws a `TypeError` for obvious mistakes (a protocol inside
+`site`, a `serverRelativeUrl` without a leading slash), so misconfiguration
+fails at startup rather than as an opaque 404 later.
 
-| Option              | Type                | Required | Default         | Description                                                                                     |
-| ------------------- | ------------------- | -------- | --------------- | ----------------------------------------------------------------------------------------------- |
-| `username`          | `string`            | Y        |                 | Windows account name, without the domain.                                                       |
-| `password`          | `string`            | Y        |                 | Account password. Read it from the environment rather than hard-coding it.                      |
-| `site`              | `string`            | Y        |                 | Host name only, e.g. `'sharepoint.contoso.local'`.                                              |
-| `serverRelativeUrl` | `string`            | Y        |                 | Site (web) path, e.g. `'/sites/finance'`. All `folder` arguments are resolved relative to this. |
-| `protocol`          | `'https' \| 'http'` | N        | `'https'`       |                                                                                                 |
-| `domain`            | `string`            | N        | `''`            | NTLM (NetBIOS) domain, e.g. `'CONTOSO'`. Leave empty for a server-local account.                |
-| `hostname`          | `string`            | N        | `os.hostname()` | Workstation name sent in the NTLM handshake. Rarely needs changing.                             |
+| Option              | Type                 | Required | Default         | Description                                                                                                   |
+| ------------------- | -------------------- | -------- | --------------- | ------------------------------------------------------------------------------------------------------------- |
+| `username`          | `string`             | Y        |                 | Windows account name, without the domain.                                                                     |
+| `password`          | `string`             | Y        |                 | Account password. Read it from the environment rather than hard-coding it.                                    |
+| `site`              | `string`             | Y        |                 | Host name only, e.g. `'sharepoint.contoso.local'`.                                                            |
+| `serverRelativeUrl` | `string`             | Y        |                 | Site (web) path, e.g. `'/sites/finance'`. All `folder` arguments are resolved relative to this.               |
+| `protocol`          | `'https' \| 'http'`  | N        | `'https'`       |                                                                                                               |
+| `domain`            | `string`             | N        | `''`            | NTLM (NetBIOS) domain, e.g. `'CONTOSO'`. Leave empty for a server-local account.                              |
+| `hostname`          | `string`             | N        | `os.hostname()` | Workstation name sent in the NTLM handshake. Rarely needs changing.                                           |
+| `agentOptions`      | `https.AgentOptions` | N        |                 | TLS / socket options for the HTTP agent. See [TLS and internal certificates](#tls-and-internal-certificates). |
 
 ### Standalone actions
 
@@ -116,11 +120,42 @@ const items = await fetchList({ listName: 'Invoices' })
 Every action resolves to a `Result<T>` and never throws:
 
 ```ts
-type Result<T> = { success: true; data: T } | { success: false; error: string }
+type Result<T> = Success<T> | Failure
+
+type Success<T> = { success: true; data: T }
+type Failure = {
+  success: false
+  error: string // "Error in getListContents: HTTP 404: List 'Tasks' does not exist"
+  code: FailureCode
+  status?: number // HTTP status, for HTTP / AUTH failures
+  details?: { code?: string; message?: string } // SharePoint's own error, when it sent one
+}
 ```
 
-Check `success` to narrow. Error messages are prefixed with the action name,
-e.g. `Error in getListContents: ...`.
+Check `success` to narrow, then branch on `code` rather than on the message
+text:
+
+| `code`    | Meaning                                                                                 |
+| --------- | --------------------------------------------------------------------------------------- |
+| `HTTP`    | SharePoint answered with a non-2xx status (other than 401/403). See `status`/`details`. |
+| `AUTH`    | 401 or 403 — bad credentials, NTLM rejected, or a missing/expired request digest.       |
+| `TIMEOUT` | No bytes arrived for `timeout` ms.                                                      |
+| `ABORTED` | Cancelled through `signal`.                                                             |
+| `NETWORK` | DNS, connection or TLS failure before any response.                                     |
+| `PARSE`   | A 2xx response whose body was not in the expected shape.                                |
+| `UNKNOWN` | Anything else.                                                                          |
+
+```ts
+const res = await connection.addListItem({ requestDigest, listName, payload })
+if (!res.success) {
+  if (res.code === 'AUTH') requestDigest = await refreshDigest()
+  else if (res.code === 'TIMEOUT' || res.code === 'NETWORK') await retryLater()
+  else log.error(res.error, res.details)
+}
+```
+
+`error` is always a human-readable message prefixed with the action name, for
+logging.
 
 ### Write operations: the request digest
 
@@ -159,10 +194,37 @@ library name: `'Shared Documents'`, `'Shared Documents/Reports/2026'`.
 
 ### Common options
 
-Every action accepts `timeout` (socket inactivity timeout in milliseconds;
-omit for no timeout). `getDocumentFromLibrary` additionally accepts `binary`
-(default `true`), which returns the file as a `Buffer`; there is no reason to
-turn it off.
+Every action accepts:
+
+- `timeout` — socket **inactivity** timeout in milliseconds. The request fails
+  with code `TIMEOUT` when no bytes arrive for this long. It is not a cap on
+  total duration; a slow but steady download never times out. Omit for none.
+- `signal` — an `AbortSignal`. Aborting yields a `Failure` with code
+  `ABORTED`. For a hard deadline on the whole call, use
+  `signal: AbortSignal.timeout(30_000)`.
+
+`getDocumentFromLibrary` additionally accepts `binary` (default `true`), which
+returns the file as a `Buffer`; there is no reason to turn it off.
+
+### TLS and internal certificates
+
+On-premises SharePoint is usually behind a certificate from an internal CA.
+Rather than setting `NODE_TLS_REJECT_UNAUTHORIZED=0` process-wide, pass the CA
+to the connection:
+
+```ts
+import { readFileSync } from 'node:fs'
+
+const connection = createSiteConnection({
+  ...options,
+  agentOptions: { ca: readFileSync('/etc/ssl/corp-root-ca.pem') },
+})
+```
+
+`agentOptions` accepts anything `https.Agent` does — `ca`, `cert`/`key` for
+client certificates, `rejectUnauthorized`, `localAddress`, a custom `lookup`,
+and so on — except `keepAlive` and `maxSockets`, which the NTLM handshake
+fixes. The agent is created per request and destroyed afterwards.
 
 ### Special characters
 
@@ -209,11 +271,14 @@ shows the same details. `requestDigest` means a digest from
 
 ### Low-level NTLM transport
 
-The NTLM layer is exported for advanced use (`request`, `get`, `post`, `auth`,
-and the message builders in `createType1Message` / `parseType2Message` /
-`createType3Message`). These are stable but undocumented here; see the inline
-JSDoc in `src/ntlm/` if you need to call SharePoint endpoints this package
-does not wrap.
+The NTLM helpers `get`, `post` and `auth` are still exported but
+**deprecated**: they are internal transport, offer no `Result` wrapping (they
+throw `SpRestError` on non-2xx), and will be removed from the public API in
+5.0. If you need a SharePoint endpoint this package does not wrap, please open
+an issue instead.
+
+`SpRestError` and `parseSharePointError(body)` are exported and supported; the
+latter extracts `{ code, message }` from either OData error-body shape.
 
 ## Contributing
 

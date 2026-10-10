@@ -155,28 +155,164 @@ describe('shared behaviour', () => {
       spId: 1,
       timeout: 100,
     })
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       success: false,
+      code: 'TIMEOUT',
       error: expect.stringMatching(
         /^Error in getListItem: .*timed out after 100ms/
       ),
     })
   })
 
-  it('wraps non-2xx responses as a failure carrying the body', async () => {
-    const { sp } = await connect(json('{"error":"nope"}', 403))
+  it('wraps non-2xx responses as an HTTP failure carrying status and body', async () => {
+    const { sp } = await connect(json('{"not":"an odata error"}', 500))
     const result = await sp.getListItem({ listName: 'Tasks', spId: 1 })
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       success: false,
-      error: 'Error in getListItem: Error: {"error":"nope"}',
+      code: 'HTTP',
+      status: 500,
+      error: 'Error in getListItem: HTTP 500: {"not":"an odata error"}',
     })
+  })
+
+  it('parses the SharePoint error body into details', async () => {
+    const { sp } = await connect(
+      json(
+        {
+          'odata.error': {
+            code: '-2147024809, System.ArgumentException',
+            message: { lang: 'en-US', value: "List 'Tasks' does not exist" },
+          },
+        },
+        404
+      )
+    )
+    const result = await sp.getListItem({ listName: 'Tasks', spId: 1 })
+    expect(result).toStrictEqual({
+      success: false,
+      code: 'HTTP',
+      status: 404,
+      error: "Error in getListItem: HTTP 404: List 'Tasks' does not exist",
+      details: {
+        code: '-2147024809, System.ArgumentException',
+        message: "List 'Tasks' does not exist",
+      },
+    })
+  })
+
+  it('classifies 401 and 403 as AUTH', async () => {
+    const { sp } = await connect(json('', 403))
+    const result = await sp.getListItem({ listName: 'Tasks', spId: 1 })
+    expect(result).toMatchObject({ success: false, code: 'AUTH', status: 403 })
+  })
+
+  it('classifies a refused connection as NETWORK', async () => {
+    const probe = http.createServer()
+    await new Promise<void>((r) => probe.listen(0, '127.0.0.1', r))
+    const { port } = probe.address() as AddressInfo
+    await new Promise<void>((r) => probe.close(() => r()))
+    const sp = createSiteConnection({
+      ...CREDS,
+      protocol: 'http',
+      site: `127.0.0.1:${port}`,
+      serverRelativeUrl: SITE_PATH,
+    })
+    const result = await sp.getListItem({ listName: 'Tasks', spId: 1 })
+    expect(result).toMatchObject({ success: false, code: 'NETWORK' })
+    expect((result as { error: string }).error).toMatch(/ECONNREFUSED/)
+  })
+
+  it('honours an AbortSignal and classifies it as ABORTED', async () => {
+    const { sp } = await connect(() => {
+      /* stall */
+    })
+    const controller = new AbortController()
+    const pending = sp.getListItem({
+      listName: 'Tasks',
+      spId: 1,
+      signal: controller.signal,
+    })
+    setTimeout(() => controller.abort(), 20)
+    const result = await pending
+    expect(result).toMatchObject({ success: false, code: 'ABORTED' })
+  })
+
+  it('fails immediately when given an already-aborted signal', async () => {
+    const { sp } = await connect(json({ Id: 1 }))
+    const result = await sp.getListItem({
+      listName: 'Tasks',
+      spId: 1,
+      signal: AbortSignal.abort(),
+    })
+    expect(result).toMatchObject({ success: false, code: 'ABORTED' })
+  })
+
+  it('passes agentOptions through to the socket layer', async () => {
+    const seen: string[] = []
+    const lookup: import('node:net').LookupFunction = (hostname, _o, cb) => {
+      seen.push(hostname)
+      cb(null, [{ address: '127.0.0.1', family: 4 }])
+    }
+    // A host *name* (not an IP) forces the agent through `lookup`.
+    const { server } = await connect(json({ Id: 1 }))
+    const named = createSiteConnection({
+      ...CREDS,
+      protocol: 'http',
+      site: `sharepoint.test:${new URL(server.url).port}`,
+      serverRelativeUrl: SITE_PATH,
+      agentOptions: { lookup },
+    })
+    const result = await named.getListItem({ listName: 'Tasks', spId: 1 })
+    expect(result.success).toBe(true)
+    expect(seen).toContain('sharepoint.test')
   })
 
   it('never throws on malformed response bodies', async () => {
     const { sp } = await connect(json('not json'))
     await expect(
       sp.getListContents({ listName: 'Tasks' })
-    ).resolves.toStrictEqual(failure('Unable to parse not json'))
+    ).resolves.toStrictEqual(failure('Unable to parse not json', 'PARSE'))
+  })
+})
+
+describe('option validation', () => {
+  const base = { ...CREDS, site: 'sp.test', serverRelativeUrl: '/sites/x' }
+  const bad: Array<[string, Partial<SiteConnectionOptions>]> = [
+    ['empty username', { username: '' }],
+    ['protocol inside site', { site: 'https://sp.test' }],
+    ['path inside site', { site: 'sp.test/sites/x' }],
+    [
+      'serverRelativeUrl without leading slash',
+      { serverRelativeUrl: 'sites/x' },
+    ],
+    [
+      'serverRelativeUrl with trailing slash',
+      { serverRelativeUrl: '/sites/x/' },
+    ],
+    [
+      'full URL as serverRelativeUrl',
+      { serverRelativeUrl: 'https://sp.test/sites/x' },
+    ],
+    ['unknown protocol', { protocol: 'ftp' as unknown as 'http' }],
+  ]
+  for (const [label, override] of bad) {
+    it(`rejects ${label}`, () => {
+      expect(() => createSiteConnection({ ...base, ...override })).toThrow(
+        TypeError
+      )
+    })
+  }
+
+  it('accepts a root web ("" or "/") and a host with a port', () => {
+    expect(() =>
+      createSiteConnection({ ...base, serverRelativeUrl: '' })
+    ).not.toThrow()
+    expect(() =>
+      createSiteConnection({ ...base, serverRelativeUrl: '/' })
+    ).not.toThrow()
+    expect(() =>
+      createSiteConnection({ ...base, site: 'sp.test:8443' })
+    ).not.toThrow()
   })
 })
 
@@ -205,7 +341,8 @@ describe('getAuthToken', () => {
       })
       await expect(sp.getAuthToken({})).resolves.toStrictEqual(
         failure(
-          'Error in getAuthToken: Error: Server did not issue an NTLM challenge (HTTP 200)'
+          'Error in getAuthToken: Server did not issue an NTLM challenge (HTTP 200)',
+          'UNKNOWN'
         )
       )
     } finally {
@@ -325,7 +462,10 @@ describe('addListItem', () => {
     const { sp } = await connect(json('bad digest', 403))
     await expect(
       sp.addListItem({ accessToken: 'stale', listName: 'Tasks', payload: '{}' })
-    ).resolves.toStrictEqual(failure('Error in addListItem: Error: bad digest'))
+    ).resolves.toStrictEqual({
+      ...failure('Error in addListItem: HTTP 403: bad digest', 'AUTH'),
+      status: 403,
+    })
   })
 })
 
@@ -514,9 +654,13 @@ describe('deleteDocumentFromLibrary', () => {
         folder: 'Docs',
         fileName: 'r.pdf',
       })
-    ).resolves.toStrictEqual(
-      failure('Error in deleteDocumentFromLibrary: Error: locked')
-    )
+    ).resolves.toStrictEqual({
+      ...failure(
+        'Error in deleteDocumentFromLibrary: HTTP 423: locked',
+        'HTTP'
+      ),
+      status: 423,
+    })
   })
 })
 

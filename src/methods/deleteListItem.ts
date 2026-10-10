@@ -7,6 +7,7 @@ import type {
 import os from 'os'
 import { post } from '../ntlm'
 import { encodePath, odataLiteral } from '../utils'
+import { toFailure } from '../errors'
 
 /**
  * Deletes a list item. Returns an empty string.
@@ -23,6 +24,7 @@ export const deleteListItem: ActionFactory<DeleteListItemOptions, string> =
     password,
     protocol = 'https',
     domain = '',
+    agentOptions,
     hostname = os.hostname(),
   }) =>
   async ({ accessToken, requestDigest, listName, spId, ...optional }) => {
@@ -37,6 +39,7 @@ export const deleteListItem: ActionFactory<DeleteListItemOptions, string> =
         password,
         workstation: hostname,
         domain,
+        agentOptions,
         headers: {
           Accept: 'application/json;odata=verbose',
           'Content-Type': 'application/json',
@@ -54,9 +57,6 @@ export const deleteListItem: ActionFactory<DeleteListItemOptions, string> =
         data: '',
       }
     } catch (error) {
-      return {
-        success: false,
-        error: `Error in deleteListItem: ${error}`,
-      }
+      return toFailure('deleteListItem', error)
     }
   }

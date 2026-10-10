@@ -37,9 +37,11 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: pnpm-lock.yaml
 
-      # npm Trusted Publishing currently requires npm 11.5.1+.
+      # npm Trusted Publishing requires npm 11.5.1+. Pin to the 11 line:
+      # npm 12 rejects the --no-git-checks flag that pnpm forwards from
+      # `changeset publish` (EUNKNOWNCONFIG), which breaks publishing.
       - name: Upgrade npm for Trusted Publishing
-        run: npm install --global npm@latest
+        run: npm install --global npm@11
 
       - name: Display tool versions
         run: |

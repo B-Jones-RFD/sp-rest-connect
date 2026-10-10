@@ -7,6 +7,7 @@ import type {
 import os from 'os'
 import { get } from '../ntlm'
 import { encodePath, odataLiteral, safeParseResult } from '../utils'
+import { toFailure } from '../errors'
 
 /**
  * Reads a single list item by ID.
@@ -23,6 +24,7 @@ export const getListItem: ActionFactory<GetListItemOptions, unknown> =
     password,
     protocol = 'https',
     domain = '',
+    agentOptions,
     hostname = os.hostname(),
   }) =>
   async ({ listName, spId, ...optional }) => {
@@ -36,6 +38,7 @@ export const getListItem: ActionFactory<GetListItemOptions, unknown> =
       password,
       workstation: hostname,
       domain,
+      agentOptions,
       headers: {
         Accept: 'application/json; odata=nometadata',
       },
@@ -47,9 +50,6 @@ export const getListItem: ActionFactory<GetListItemOptions, unknown> =
       const result = safeParseResult(res)
       return result
     } catch (error) {
-      return {
-        success: false,
-        error: `Error in getListItem: ${error}`,
-      }
+      return toFailure('getListItem', error)
     }
   }

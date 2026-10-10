@@ -48,10 +48,11 @@
   "license": "MIT",
   "packageManager": "pnpm@10.12.1",
   "engines": {
-    "node": ">=22"
+    "node": ">=20"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "repository": {
     "type": "git",

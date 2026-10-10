@@ -7,6 +7,7 @@ import type {
 import os from 'os'
 import { get } from '../ntlm'
 import { encodePath, odataLiteral, safeParseResults } from '../utils'
+import { toFailure } from '../errors'
 
 /**
  * Queries list items with optional OData `params`. Returns the OData `value` array.
@@ -26,6 +27,7 @@ export const getListContents: ActionFactory<
     serverRelativeUrl,
     protocol = 'https',
     domain = '',
+    agentOptions,
     hostname = os.hostname(),
   }) =>
   async ({ listName, params = undefined, ...optional }) => {
@@ -41,6 +43,7 @@ export const getListContents: ActionFactory<
       password,
       workstation: hostname,
       domain,
+      agentOptions,
       headers: {
         Accept: 'application/json; odata=nometadata',
       },
@@ -52,9 +55,6 @@ export const getListContents: ActionFactory<
       const results = safeParseResults(res)
       return results
     } catch (error) {
-      return {
-        success: false,
-        error: `Error in getListContents: ${error}`,
-      }
+      return toFailure('getListContents', error)
     }
   }

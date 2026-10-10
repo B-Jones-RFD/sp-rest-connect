@@ -7,6 +7,7 @@ import type {
 import os from 'os'
 import { post } from '../ntlm'
 import { encodePath, odataLiteral } from '../utils'
+import { toFailure } from '../errors'
 
 /**
  * Creates a list item. `payload` must be a JSON string including `__metadata.type` from `getListItemType`. Returns the created item as a raw JSON string.
@@ -23,6 +24,7 @@ export const addListItem: ActionFactory<AddListItemOptions, string> =
     password,
     protocol = 'https',
     domain = '',
+    agentOptions,
     hostname = os.hostname(),
   }) =>
   async ({ accessToken, requestDigest, listName, payload, ...optional }) => {
@@ -37,6 +39,7 @@ export const addListItem: ActionFactory<AddListItemOptions, string> =
         password,
         workstation: hostname,
         domain,
+        agentOptions,
         headers: {
           Accept: 'application/json;odata=nometadata',
           'Content-Type': 'application/json;odata=verbose',
@@ -55,9 +58,6 @@ export const addListItem: ActionFactory<AddListItemOptions, string> =
         data,
       }
     } catch (error) {
-      return {
-        success: false,
-        error: `Error in addListItem: ${error}`,
-      }
+      return toFailure('addListItem', error)
     }
   }

@@ -1,10 +1,13 @@
-import type { NtlmCredentials } from './messages'
 import { request, authenticate, type NtlmRequestOptions } from './request'
+import { SpRestError } from '../errors'
 
 export type { NtlmRequestOptions } from './request'
 export type GetOptions = NtlmRequestOptions
 export type PostOptions = NtlmRequestOptions
-export type AuthOptions = NtlmCredentials & { url: string; timeout?: number }
+export type AuthOptions = Omit<
+  NtlmRequestOptions,
+  'headers' | 'body' | 'binary'
+>
 
 function unwrap(
   method: 'GET' | 'POST',
@@ -12,7 +15,7 @@ function unwrap(
 ): Promise<unknown> {
   return request(method, options).then((res) => {
     if (res.statusCode >= 200 && res.statusCode <= 299) return res.body
-    throw new Error(String(res.body))
+    throw new SpRestError(res.statusCode, String(res.body))
   })
 }
 

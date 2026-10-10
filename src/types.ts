@@ -1,3 +1,5 @@
+import type { AgentOptions } from 'node:https'
+
 /**
  * Public types for `@b-jones-rfd/sp-rest-connect`.
  *
@@ -8,8 +10,45 @@
 /** Successful action result. The payload is in `data`. */
 export type Success<T> = { success: true; data: T }
 
-/** Failed action result. `error` is a human-readable message, prefixed with the action name. */
-export type Failure = { success: false; error: string }
+/**
+ * Classification of a {@link Failure}. Branch on this rather than on the
+ * `error` text.
+ *
+ * - `HTTP`    — SharePoint answered with a non-2xx status other than 401/403. See `status` and `details`.
+ * - `AUTH`    — 401 or 403: bad credentials, NTLM rejected, or an expired/missing request digest.
+ * - `TIMEOUT` — the socket was idle longer than `timeout`.
+ * - `ABORTED` — the request was cancelled through `signal`.
+ * - `NETWORK` — DNS, connection or TLS failure before a response arrived.
+ * - `PARSE`   — SharePoint answered 2xx but the body was not in the expected shape.
+ * - `UNKNOWN` — anything else.
+ */
+export type FailureCode =
+  'HTTP' | 'AUTH' | 'TIMEOUT' | 'ABORTED' | 'NETWORK' | 'PARSE' | 'UNKNOWN'
+
+/** The `error` object SharePoint returns in a failed response body, when present. */
+export type SharePointError = {
+  /** SharePoint error code, e.g. `'-2130575338, Microsoft.SharePoint.SPException'`. */
+  code?: string
+  /** Human-readable message from SharePoint. */
+  message?: string
+}
+
+/**
+ * Failed action result.
+ *
+ * `error` is a human-readable message prefixed with the action name, for
+ * logging. `code` classifies the failure; `status` and `details` are present
+ * for `HTTP`/`AUTH` failures when SharePoint supplied them.
+ */
+export type Failure = {
+  success: false
+  error: string
+  code: FailureCode
+  /** HTTP status code, for `HTTP` and `AUTH` failures. */
+  status?: number
+  /** Parsed SharePoint error body, when the response carried one. */
+  details?: SharePointError
+}
 
 /**
  * Discriminated union returned by every action.
@@ -57,12 +96,32 @@ export type SiteConnectionOptions = {
    * @defaultValue `os.hostname()`
    */
   hostname?: string
+  /**
+   * Options for the per-request `http.Agent`/`https.Agent`, e.g. `ca` for an
+   * internal certificate authority, `rejectUnauthorized`, `localAddress`, or
+   * `lookup`. `keepAlive` and `maxSockets` are fixed by the NTLM handshake and
+   * cannot be overridden.
+   * @example
+   * agentOptions: { ca: fs.readFileSync('corp-root-ca.pem') }
+   */
+  agentOptions?: AgentOptions
 }
 
 /** Options accepted by every action in addition to its own parameters. */
 export interface RequestOptions {
-  /** Socket inactivity timeout in milliseconds. Omit for no timeout. */
+  /**
+   * Socket inactivity timeout in milliseconds: the request fails with code
+   * `TIMEOUT` if no bytes arrive for this long. It is not a cap on total
+   * duration; use `signal` with `AbortSignal.timeout()` for that.
+   * Omit for no timeout.
+   */
   timeout?: number
+  /**
+   * Cancels the request. Abort yields a `Failure` with code `ABORTED`.
+   * @example
+   * connection.getListContents({ listName: 'Tasks', signal: AbortSignal.timeout(5000) })
+   */
+  signal?: AbortSignal
 }
 
 /**

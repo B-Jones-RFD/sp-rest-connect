@@ -7,6 +7,7 @@ import type {
 import os from 'os'
 import { post } from '../ntlm'
 import { encodePath, safeParseServerUrl } from '../utils'
+import { toFailure } from '../errors'
 
 /**
  * Creates a folder (parent must exist). Returns the folder's server-relative URL.
@@ -26,6 +27,7 @@ export const createFolderInLibrary: ActionFactory<
     password,
     protocol = 'https',
     domain = '',
+    agentOptions,
     hostname = os.hostname(),
   }) =>
   async ({ accessToken, requestDigest, folder, ...optional }) => {
@@ -42,6 +44,7 @@ export const createFolderInLibrary: ActionFactory<
         password,
         workstation: hostname,
         domain,
+        agentOptions,
         headers: {
           Accept: 'application/json;odata=verbose',
           'Content-Type': 'application/json',
@@ -55,9 +58,6 @@ export const createFolderInLibrary: ActionFactory<
       const result = safeParseServerUrl(res)
       return result
     } catch (error) {
-      return {
-        success: false,
-        error: `Error in createFolderInLibrary: ${error}`,
-      }
+      return toFailure('createFolderInLibrary', error)
     }
   }

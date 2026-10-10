@@ -7,6 +7,7 @@ import type {
 import os from 'os'
 import { post } from '../ntlm'
 import { encodePath, odataLiteral, safeParseServerUrl } from '../utils'
+import { toFailure } from '../errors'
 
 /**
  * Attaches a file to an existing list item. Returns the attachment's server-relative URL.
@@ -26,6 +27,7 @@ export const addAttachmentToListItem: ActionFactory<
     password,
     protocol = 'https',
     domain = '',
+    agentOptions,
     hostname = os.hostname(),
   }) =>
   async ({
@@ -48,6 +50,7 @@ export const addAttachmentToListItem: ActionFactory<
         password,
         workstation: hostname,
         domain,
+        agentOptions,
         headers: {
           Accept: 'application/json;odata=verbose',
           'Content-Type': 'application/json;odata=verbose',
@@ -61,9 +64,6 @@ export const addAttachmentToListItem: ActionFactory<
       const result = safeParseServerUrl(res)
       return result
     } catch (error) {
-      return {
-        success: false,
-        error: `Error in addAttachmentToListItem: ${error}`,
-      }
+      return toFailure('addAttachmentToListItem', error)
     }
   }

@@ -7,6 +7,7 @@ import type {
 import os from 'os'
 import { get } from '../ntlm'
 import { encodePath, odataLiteral, safeParseItemType } from '../utils'
+import { toFailure } from '../errors'
 
 /**
  * Reads the list entity type name used in `__metadata.type` for creates and updates.
@@ -23,6 +24,7 @@ export const getListItemType: ActionFactory<GetListItemTypeOptions, string> =
     serverRelativeUrl,
     protocol = 'https',
     domain = '',
+    agentOptions,
     hostname = os.hostname(),
   }) =>
   async ({ listName, ...optional }) => {
@@ -36,6 +38,7 @@ export const getListItemType: ActionFactory<GetListItemTypeOptions, string> =
       password,
       workstation: hostname,
       domain,
+      agentOptions,
       headers: {
         Accept: 'application/json; odata=nometadata',
       },
@@ -47,9 +50,6 @@ export const getListItemType: ActionFactory<GetListItemTypeOptions, string> =
       const results = safeParseItemType(res)
       return results
     } catch (error) {
-      return {
-        success: false,
-        error: `Error in getListItemType: ${error}`,
-      }
+      return toFailure('getListItemType', error)
     }
   }
