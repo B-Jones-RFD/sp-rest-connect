@@ -1,12 +1,21 @@
-import type { ActionFactory } from '../types'
+import type {
+  ActionFactory,
+  RequestOptions,
+  SiteConnection,
+  SiteConnectionOptions,
+} from '../types'
 import os from 'os'
 import { auth } from '../ntlm'
 import { safeParseAuthToken } from '../utils'
 
-export const getAuthToken: ActionFactory<
-  { timeout?: number; binary?: boolean },
-  string
-> =
+/**
+ * Runs the NTLM handshake and returns the Type 3 `Authorization` header value. Diagnostic only; this is NOT the `accessToken` for writes (see `getFormDigestValue`).
+ *
+ * Factory form of {@link SiteConnection.getAuthToken}: call with your
+ * {@link SiteConnectionOptions} to get a reusable action. See the
+ * `SiteConnection` member for full parameter and return documentation.
+ */
+export const getAuthToken: ActionFactory<RequestOptions, string> =
   ({
     username,
     password,

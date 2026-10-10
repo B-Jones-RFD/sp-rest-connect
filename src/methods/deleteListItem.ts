@@ -1,17 +1,20 @@
-import type { ActionFactory } from '../types'
+import type {
+  ActionFactory,
+  DeleteListItemOptions,
+  SiteConnection,
+  SiteConnectionOptions,
+} from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 
-export const deleteListItem: ActionFactory<
-  {
-    accessToken: string
-    listName: string
-    spId: number
-    timeout?: number
-    binary?: boolean
-  },
-  string
-> =
+/**
+ * Deletes a list item. Returns an empty string.
+ *
+ * Factory form of {@link SiteConnection.deleteListItem}: call with your
+ * {@link SiteConnectionOptions} to get a reusable action. See the
+ * `SiteConnection` member for full parameter and return documentation.
+ */
+export const deleteListItem: ActionFactory<DeleteListItemOptions, string> =
   ({
     site,
     serverRelativeUrl,

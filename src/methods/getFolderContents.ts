@@ -1,15 +1,22 @@
-import type { ActionFactory } from '../types'
+import type {
+  ActionFactory,
+  GetFolderContentsOptions,
+  SiteConnection,
+  SiteConnectionOptions,
+} from '../types'
 import os from 'os'
 import { get } from '../ntlm'
 import { safeParseResults } from '../utils'
 
+/**
+ * Lists the files directly inside a folder. Returns the OData `value` array.
+ *
+ * Factory form of {@link SiteConnection.getFolderContents}: call with your
+ * {@link SiteConnectionOptions} to get a reusable action. See the
+ * `SiteConnection` member for full parameter and return documentation.
+ */
 export const getFolderContents: ActionFactory<
-  {
-    folder: string
-    params?: URLSearchParams
-    timeout?: number
-    binary?: boolean
-  },
+  GetFolderContentsOptions,
   unknown[]
 > =
   ({

@@ -1,12 +1,21 @@
-import type { ActionFactory } from '../types'
+import type {
+  ActionFactory,
+  GetListItemOptions,
+  SiteConnection,
+  SiteConnectionOptions,
+} from '../types'
 import os from 'os'
 import { get } from '../ntlm'
 import { safeParseResult } from '../utils'
 
-export const getListItem: ActionFactory<
-  { listName: string; spId: number; timeout?: number; binary?: boolean },
-  unknown
-> =
+/**
+ * Reads a single list item by ID.
+ *
+ * Factory form of {@link SiteConnection.getListItem}: call with your
+ * {@link SiteConnectionOptions} to get a reusable action. See the
+ * `SiteConnection` member for full parameter and return documentation.
+ */
+export const getListItem: ActionFactory<GetListItemOptions, unknown> =
   ({
     site,
     serverRelativeUrl,

@@ -1,15 +1,21 @@
-import type { ActionFactory } from '../types'
+import type {
+  ActionFactory,
+  DeleteDocumentFromLibraryOptions,
+  SiteConnection,
+  SiteConnectionOptions,
+} from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 
+/**
+ * Deletes a file from a document library. Returns the deleted file name.
+ *
+ * Factory form of {@link SiteConnection.deleteDocumentFromLibrary}: call with your
+ * {@link SiteConnectionOptions} to get a reusable action. See the
+ * `SiteConnection` member for full parameter and return documentation.
+ */
 export const deleteDocumentFromLibrary: ActionFactory<
-  {
-    accessToken: string
-    folder: string
-    fileName: string
-    timeout?: number
-    binary?: boolean
-  },
+  DeleteDocumentFromLibraryOptions,
   string
 > =
   ({

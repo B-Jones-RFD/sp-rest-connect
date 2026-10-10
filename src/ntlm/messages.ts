@@ -116,8 +116,7 @@ export function createType1Message({
 
   let flags = TYPE1_FLAGS
   if (domainBuf.length === 0) flags &= ~NTLM_FLAGS.NegotiateOemDomainSupplied
-  if (wsBuf.length === 0)
-    flags &= ~NTLM_FLAGS.NegotiateOemWorkstationSupplied
+  if (wsBuf.length === 0) flags &= ~NTLM_FLAGS.NegotiateOemWorkstationSupplied
 
   const headerLen = 32 + VERSION.length // 40
   const buf = Buffer.alloc(headerLen + domainBuf.length + wsBuf.length)

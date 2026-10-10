@@ -1,15 +1,22 @@
-import type { ActionFactory } from '../types'
+import type {
+  ActionFactory,
+  GetListContentsOptions,
+  SiteConnection,
+  SiteConnectionOptions,
+} from '../types'
 import os from 'os'
 import { get } from '../ntlm'
 import { safeParseResults } from '../utils'
 
+/**
+ * Queries list items with optional OData `params`. Returns the OData `value` array.
+ *
+ * Factory form of {@link SiteConnection.getListContents}: call with your
+ * {@link SiteConnectionOptions} to get a reusable action. See the
+ * `SiteConnection` member for full parameter and return documentation.
+ */
 export const getListContents: ActionFactory<
-  {
-    listName: string
-    params?: URLSearchParams
-    timeout?: number
-    binary?: boolean
-  },
+  GetListContentsOptions,
   unknown[]
 > =
   ({

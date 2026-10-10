@@ -71,8 +71,8 @@ function send(
       body === undefined
         ? undefined
         : Buffer.isBuffer(body)
-        ? body
-        : Buffer.from(body, 'utf8')
+          ? body
+          : Buffer.from(body, 'utf8')
 
     if (!hasHeader(headers, 'content-length')) {
       headers['Content-Length'] = payload ? payload.length : 0
@@ -137,9 +137,7 @@ export async function request(
     if (challenge.statusCode === 401) {
       const wwwAuthenticate = challenge.headers['www-authenticate']
       if (!wwwAuthenticate) {
-        throw new Error(
-          'www-authenticate not found on NTLM challenge response'
-        )
+        throw new Error('www-authenticate not found on NTLM challenge response')
       }
       // Throws if the header carries no NTLM token (e.g. Basic/Negotiate only).
       extractNtlmToken(wwwAuthenticate)

@@ -1,17 +1,22 @@
-import type { ActionFactory } from '../types'
+import type {
+  ActionFactory,
+  AddDocumentToLibraryOptions,
+  SiteConnection,
+  SiteConnectionOptions,
+} from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 import { safeParseServerUrl } from '../utils'
 
+/**
+ * Uploads a file to a document library folder (overwrites). Returns the file's server-relative URL.
+ *
+ * Factory form of {@link SiteConnection.addDocumentToLibrary}: call with your
+ * {@link SiteConnectionOptions} to get a reusable action. See the
+ * `SiteConnection` member for full parameter and return documentation.
+ */
 export const addDocumentToLibrary: ActionFactory<
-  {
-    accessToken: string
-    folder: string
-    fileName: string
-    payload: Buffer
-    timeout?: number
-    binary?: boolean
-  },
+  AddDocumentToLibraryOptions,
   string
 > =
   ({

@@ -1,10 +1,22 @@
-import type { ActionFactory } from '../types'
+import type {
+  ActionFactory,
+  CheckFolderExistsInLibraryOptions,
+  SiteConnection,
+  SiteConnectionOptions,
+} from '../types'
 import os from 'os'
 import { get } from '../ntlm'
 import { safeParseFolderExists } from '../utils'
 
+/**
+ * Checks whether a folder exists. A missing folder is a successful `false`.
+ *
+ * Factory form of {@link SiteConnection.checkFolderExistsInLibrary}: call with your
+ * {@link SiteConnectionOptions} to get a reusable action. See the
+ * `SiteConnection` member for full parameter and return documentation.
+ */
 export const checkFolderExistsInLibrary: ActionFactory<
-  { folder: string; timeout?: number; binary?: boolean },
+  CheckFolderExistsInLibraryOptions,
   boolean
 > =
   ({

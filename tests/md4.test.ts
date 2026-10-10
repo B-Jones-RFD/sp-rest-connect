@@ -23,7 +23,6 @@ describe('md4', () => {
     ).toBe('e33b4ddc9c38f2199c3e7b164fcc0536')
   })
 
-
   it('computes the NT hash of "Password" (MS-NLMP 4.2.1)', () => {
     const nt = md4(Buffer.from('Password', 'utf16le')).toString('hex')
     expect(nt).toBe('a4f49c406510bdcab6824ee7c30fd852')

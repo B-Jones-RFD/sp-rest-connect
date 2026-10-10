@@ -1,10 +1,22 @@
-import type { ActionFactory } from '../types'
+import type {
+  ActionFactory,
+  CreateFolderInLibraryOptions,
+  SiteConnection,
+  SiteConnectionOptions,
+} from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 import { safeParseServerUrl } from '../utils'
 
+/**
+ * Creates a folder (parent must exist). Returns the folder's server-relative URL.
+ *
+ * Factory form of {@link SiteConnection.createFolderInLibrary}: call with your
+ * {@link SiteConnectionOptions} to get a reusable action. See the
+ * `SiteConnection` member for full parameter and return documentation.
+ */
 export const createFolderInLibrary: ActionFactory<
-  { accessToken: string; folder: string; timeout?: number; binary?: boolean },
+  CreateFolderInLibraryOptions,
   string
 > =
   ({

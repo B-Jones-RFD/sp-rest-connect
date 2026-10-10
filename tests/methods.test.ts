@@ -258,7 +258,10 @@ describe('getListContents', () => {
 
   it('omits the "?" when params are empty', async () => {
     const { sp, server } = await connect(json({ value: [] }))
-    await sp.getListContents({ listName: 'Tasks', params: new URLSearchParams() })
+    await sp.getListContents({
+      listName: 'Tasks',
+      params: new URLSearchParams(),
+    })
     expect(authenticatedLeg(server).url).not.toContain('?')
   })
 })
@@ -381,7 +384,9 @@ describe('deleteListItem', () => {
 describe('addAttachmentToListItem', () => {
   it('POSTs the raw file bytes to AttachmentFiles/add', async () => {
     const { sp, server } = await connect(
-      json({ d: { ServerRelativeUrl: '/sites/test/Lists/Tasks/Attachments/1/a.txt' } })
+      json({
+        d: { ServerRelativeUrl: '/sites/test/Lists/Tasks/Attachments/1/a.txt' },
+      })
     )
     const payload = Buffer.from([0x00, 0xff, 0x10, 0x80])
     const result = await sp.addAttachmentToListItem({

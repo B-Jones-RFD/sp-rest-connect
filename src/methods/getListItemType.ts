@@ -1,12 +1,21 @@
-import type { ActionFactory } from '../types'
+import type {
+  ActionFactory,
+  GetListItemTypeOptions,
+  SiteConnection,
+  SiteConnectionOptions,
+} from '../types'
 import os from 'os'
 import { get } from '../ntlm'
 import { safeParseItemType } from '../utils'
 
-export const getListItemType: ActionFactory<
-  { listName: string; timeout?: number; binary?: boolean },
-  string
-> =
+/**
+ * Reads the list entity type name used in `__metadata.type` for creates and updates.
+ *
+ * Factory form of {@link SiteConnection.getListItemType}: call with your
+ * {@link SiteConnectionOptions} to get a reusable action. See the
+ * `SiteConnection` member for full parameter and return documentation.
+ */
+export const getListItemType: ActionFactory<GetListItemTypeOptions, string> =
   ({
     username,
     password,

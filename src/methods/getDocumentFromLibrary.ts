@@ -1,10 +1,22 @@
-import type { ActionFactory } from '../types'
+import type {
+  ActionFactory,
+  GetDocumentFromLibraryOptions,
+  SiteConnection,
+  SiteConnectionOptions,
+} from '../types'
 import os from 'os'
 import { get } from '../ntlm'
 import { safeParseDocument } from '../utils'
 
+/**
+ * Downloads a file as a `Buffer`.
+ *
+ * Factory form of {@link SiteConnection.getDocumentFromLibrary}: call with your
+ * {@link SiteConnectionOptions} to get a reusable action. See the
+ * `SiteConnection` member for full parameter and return documentation.
+ */
 export const getDocumentFromLibrary: ActionFactory<
-  { folder: string; fileName: string; timeout?: number; binary?: boolean },
+  GetDocumentFromLibraryOptions,
   Buffer
 > =
   ({

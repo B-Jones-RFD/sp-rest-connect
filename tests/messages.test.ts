@@ -101,8 +101,12 @@ describe('extractNtlmToken', () => {
   })
   it('rejects a challenge-less header', () => {
     expect(() => extractNtlmToken('NTLM')).toThrow(/does not contain/)
-    expect(() => extractNtlmToken('Negotiate, NTLM')).toThrow(/does not contain/)
-    expect(() => extractNtlmToken('Basic realm="x"')).toThrow(/does not contain/)
+    expect(() => extractNtlmToken('Negotiate, NTLM')).toThrow(
+      /does not contain/
+    )
+    expect(() => extractNtlmToken('Basic realm="x"')).toThrow(
+      /does not contain/
+    )
   })
 })
 
@@ -212,6 +216,8 @@ describe('createType3Message', () => {
     const noInfo = parseType2Message(
       buildType2({ flags: V2_FLAGS & ~NTLM_FLAGS.NegotiateTargetInfo })
     )
-    expect(() => createType3Message(noInfo, creds)).toThrow(/NTLMv1 is not supported/)
+    expect(() => createType3Message(noInfo, creds)).toThrow(
+      /NTLMv1 is not supported/
+    )
   })
 })

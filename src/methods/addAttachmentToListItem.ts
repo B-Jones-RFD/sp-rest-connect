@@ -1,18 +1,22 @@
-import type { ActionFactory } from '../types'
+import type {
+  ActionFactory,
+  AddAttachmentToListItemOptions,
+  SiteConnection,
+  SiteConnectionOptions,
+} from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 import { safeParseServerUrl } from '../utils'
 
+/**
+ * Attaches a file to an existing list item. Returns the attachment's server-relative URL.
+ *
+ * Factory form of {@link SiteConnection.addAttachmentToListItem}: call with your
+ * {@link SiteConnectionOptions} to get a reusable action. See the
+ * `SiteConnection` member for full parameter and return documentation.
+ */
 export const addAttachmentToListItem: ActionFactory<
-  {
-    accessToken: string
-    listName: string
-    spId: number
-    fileName: string
-    payload: Buffer
-    timeout?: number
-    binary?: boolean
-  },
+  AddAttachmentToListItemOptions,
   string
 > =
   ({

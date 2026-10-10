@@ -1,17 +1,20 @@
-import type { ActionFactory } from '../types'
+import type {
+  ActionFactory,
+  AddListItemOptions,
+  SiteConnection,
+  SiteConnectionOptions,
+} from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 
-export const addListItem: ActionFactory<
-  {
-    accessToken: string
-    listName: string
-    payload: string
-    timeout?: number
-    binary?: boolean
-  },
-  string
-> =
+/**
+ * Creates a list item. `payload` must be a JSON string including `__metadata.type` from `getListItemType`. Returns the created item as a raw JSON string.
+ *
+ * Factory form of {@link SiteConnection.addListItem}: call with your
+ * {@link SiteConnectionOptions} to get a reusable action. See the
+ * `SiteConnection` member for full parameter and return documentation.
+ */
+export const addListItem: ActionFactory<AddListItemOptions, string> =
   ({
     site,
     serverRelativeUrl,

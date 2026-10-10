@@ -13,10 +13,7 @@ export type GetOptions = NtlmRequestOptions
 export type PostOptions = NtlmRequestOptions
 export type AuthOptions = NtlmCredentials & { url: string }
 
-function unwrap(
-  method: string,
-  options: NtlmRequestOptions
-): Promise<unknown> {
+function unwrap(method: string, options: NtlmRequestOptions): Promise<unknown> {
   return request(method as 'GET' | 'POST', options).then((res) => {
     if (res.statusCode >= 200 && res.statusCode <= 299) return res.body
     throw new Error(String(res.body))
@@ -46,7 +43,9 @@ export async function auth(options: AuthOptions): Promise<string> {
         res.resume()
         const header = res.headers['www-authenticate']
         if (!header) {
-          return reject(new Error('Auth response missing www-authenticate header'))
+          return reject(
+            new Error('Auth response missing www-authenticate header')
+          )
         }
         try {
           const type2msg = parseType2Message(header)

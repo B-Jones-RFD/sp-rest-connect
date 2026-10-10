@@ -6,6 +6,17 @@
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
   "scripts": {
     "dev": "vitest",
     "test": "vitest run",
@@ -14,7 +25,18 @@
     "ci": "pnpm run lint && pnpm run test && pnpm run build",
     "release": "pnpm run build && pnpm publish -r --no-git-checks"
   },
-  "keywords": [],
+  "keywords": [
+    "sharepoint",
+    "sharepoint-rest",
+    "rest",
+    "odata",
+    "ntlm",
+    "ntlmv2",
+    "on-premise",
+    "list",
+    "document-library",
+    "nodejs"
+  ],
   "author": "B-Jones-RFD",
   "license": "MIT",
   "packageManager": "pnpm@10.12.1",
@@ -28,9 +50,14 @@
     "type": "git",
     "url": "git+https://github.com/B-Jones-RFD/sp-rest-connect.git"
   },
+  "homepage": "https://github.com/B-Jones-RFD/sp-rest-connect#readme",
+  "bugs": {
+    "url": "https://github.com/B-Jones-RFD/sp-rest-connect/issues"
+  },
   "devDependencies": {
     "@changesets/cli": "^2.26.0",
     "@types/node": "^22.0.0",
+    "prettier": "^3.9.10",
     "tsup": "^6.6.3",
     "typescript": "^4.9.5",
     "vitest": "^0.28.5"

@@ -1,134 +1,369 @@
+/**
+ * Public types for `@b-jones-rfd/sp-rest-connect`.
+ *
+ * Every action resolves to a {@link Result} and never throws: check
+ * `result.success` to narrow to {@link Success} or {@link Failure}.
+ */
+
+/** Successful action result. The payload is in `data`. */
 export type Success<T> = { success: true; data: T }
 
+/** Failed action result. `error` is a human-readable message, prefixed with the action name. */
 export type Failure = { success: false; error: string }
 
+/**
+ * Discriminated union returned by every action.
+ *
+ * @example
+ * const res = await connection.getListContents({ listName: 'Tasks' })
+ * if (res.success) console.log(res.data) // unknown[]
+ * else console.error(res.error)         // string
+ */
 export type Result<T> = Success<T> | Failure
 
+/** An asynchronous SharePoint operation bound to a site connection. */
 export type Action<TConfig, TResponse> = (
   options: TConfig
 ) => Promise<Result<TResponse>>
 
+/**
+ * Connection and credential settings for an on-premises SharePoint site
+ * (2013, 2016, 2019 or Subscription Edition). SharePoint Online is not
+ * supported: it does not accept NTLM authentication.
+ */
 export type SiteConnectionOptions = {
+  /** Windows account name used for NTLM authentication, without the domain (e.g. `'jsmith'`). */
   username: string
+  /** Password for `username`. Prefer reading this from the environment rather than hard-coding it. */
   password: string
+  /** SharePoint host name, without protocol or path (e.g. `'sharepoint.contoso.local'`). */
   site: string
+  /**
+   * Server-relative URL of the site (web), starting with `/` and without a
+   * trailing slash (e.g. `'/sites/finance'`). All `folder` arguments are
+   * resolved relative to this path.
+   */
   serverRelativeUrl: string
+  /** URL scheme. @defaultValue `'https'` */
   protocol?: 'https' | 'http'
+  /**
+   * NTLM (NetBIOS) domain of the account, e.g. `'CONTOSO'` — not a DNS name.
+   * Leave empty if the account is local to the server.
+   * @defaultValue `''`
+   */
   domain?: string
+  /**
+   * Workstation name sent in the NTLM handshake. Rarely needs changing.
+   * @defaultValue `os.hostname()`
+   */
   hostname?: string
 }
 
+/** Options accepted by every action in addition to its own parameters. */
+export interface RequestOptions {
+  /** Socket inactivity timeout in milliseconds. Omit for no timeout. */
+  timeout?: number
+  /**
+   * Return the raw response body as a `Buffer` instead of a UTF-8 string.
+   * Only {@link SiteConnection.getDocumentFromLibrary} uses this (it defaults
+   * to `true` there). Every other action parses a string body, so setting
+   * `binary: true` on them yields a `Failure` of "Incorrect response format".
+   */
+  binary?: boolean
+}
+
+/** Options that require a request digest (needed for every write). */
+export interface AuthenticatedRequestOptions extends RequestOptions {
+  /**
+   * SharePoint request digest (`X-RequestDigest`) obtained from
+   * {@link SiteConnection.getFormDigestValue}. Digests expire (30 minutes by
+   * default); fetch a fresh one per batch of writes.
+   */
+  accessToken: string
+}
+
+export interface AddAttachmentToListItemOptions extends AuthenticatedRequestOptions {
+  /** List display title, as shown in the SharePoint UI (not the URL segment). */
+  listName: string
+  /** Integer `ID` of the list item. */
+  spId: number
+  /** Attachment file name, including extension. */
+  fileName: string
+  /** File contents. */
+  payload: Buffer
+}
+
+export interface AddDocumentToLibraryOptions extends AuthenticatedRequestOptions {
+  /**
+   * Target folder path relative to `serverRelativeUrl`, starting with the
+   * library name (e.g. `'Shared Documents/Reports'`).
+   */
+  folder: string
+  /** File name, including extension. An existing file with the same name is overwritten. */
+  fileName: string
+  /** File contents. */
+  payload: Buffer
+}
+
+export interface AddListItemOptions extends AuthenticatedRequestOptions {
+  /** List display title, as shown in the SharePoint UI (not the URL segment). */
+  listName: string
+  /**
+   * JSON-encoded item. Must include the entity type from
+   * {@link SiteConnection.getListItemType}:
+   *
+   * ```ts
+   * JSON.stringify({ __metadata: { type: itemType }, Title: 'Hello' })
+   * ```
+   */
+  payload: string
+}
+
+export interface CheckFolderExistsInLibraryOptions extends RequestOptions {
+  /** Folder path relative to `serverRelativeUrl` (e.g. `'Shared Documents/Reports'`). */
+  folder: string
+}
+
+export interface CreateFolderInLibraryOptions extends AuthenticatedRequestOptions {
+  /**
+   * Folder path to create, relative to `serverRelativeUrl`
+   * (e.g. `'Shared Documents/Reports/2026'`). The parent folder must exist.
+   */
+  folder: string
+}
+
+export interface DeleteDocumentFromLibraryOptions extends AuthenticatedRequestOptions {
+  /** Folder containing the file, relative to `serverRelativeUrl`. */
+  folder: string
+  /** File name, including extension. */
+  fileName: string
+}
+
+export interface DeleteListItemOptions extends AuthenticatedRequestOptions {
+  /** List display title, as shown in the SharePoint UI (not the URL segment). */
+  listName: string
+  /** Integer `ID` of the list item. */
+  spId: number
+}
+
+export interface GetDocumentFromLibraryOptions extends RequestOptions {
+  /** Folder containing the file, relative to `serverRelativeUrl`. */
+  folder: string
+  /** File name, including extension. */
+  fileName: string
+}
+
+export interface GetFolderContentsOptions extends RequestOptions {
+  /** Folder path relative to `serverRelativeUrl` (e.g. `'Shared Documents'`). */
+  folder: string
+  /** OData query options, e.g. `new URLSearchParams({ $select: 'Name,Length', $top: '500' })`. */
+  params?: URLSearchParams
+}
+
+export interface GetListContentsOptions extends RequestOptions {
+  /** List display title, as shown in the SharePoint UI (not the URL segment). */
+  listName: string
+  /**
+   * OData query options, e.g.
+   * `new URLSearchParams({ $select: 'Id,Title', $filter: "Status eq 'Open'", $top: '200' })`.
+   * Without `$top` SharePoint returns at most 100 items.
+   */
+  params?: URLSearchParams
+}
+
+export interface GetListItemOptions extends RequestOptions {
+  /** List display title, as shown in the SharePoint UI (not the URL segment). */
+  listName: string
+  /** Integer `ID` of the list item. */
+  spId: number
+}
+
+export interface GetListItemTypeOptions extends RequestOptions {
+  /** List display title, as shown in the SharePoint UI (not the URL segment). */
+  listName: string
+}
+
+export interface UpdateListItemOptions extends AuthenticatedRequestOptions {
+  /** List display title, as shown in the SharePoint UI (not the URL segment). */
+  listName: string
+  /** Integer `ID` of the list item. */
+  spId: number
+  /**
+   * JSON-encoded partial item. Only the fields present are changed (OData
+   * MERGE). Must include `__metadata: { type }` from
+   * {@link SiteConnection.getListItemType}.
+   */
+  patch: string
+}
+
+/**
+ * Creates an {@link Action} bound to a site. Call it once with your
+ * {@link SiteConnectionOptions}, then call the returned action as many times
+ * as needed.
+ */
 export type ActionFactory<TParams, TResponse> = (
   options: SiteConnectionOptions
 ) => Action<TParams, TResponse>
 
+/**
+ * All actions bound to one site. Create with `createSiteConnection`.
+ *
+ * Read actions need only the connection. Write actions additionally need a
+ * request digest from {@link SiteConnection.getFormDigestValue}, passed as
+ * `accessToken`.
+ */
 export type SiteConnection = {
-  addAttachmentToListItem: Action<
-    {
-      accessToken: string
-      listName: string
-      spId: number
-      fileName: string
-      payload: Buffer
-      timeout?: number
-      binary?: boolean
-    },
-    string
-  >
-  addDocumentToLibrary: Action<
-    {
-      accessToken: string
-      folder: string
-      fileName: string
-      payload: Buffer
-      timeout?: number
-      binary?: boolean
-    },
-    string
-  >
-  addListItem: Action<
-    {
-      accessToken: string
-      listName: string
-      payload: string
-      timeout?: number
-      binary?: boolean
-    },
-    string
-  >
-  checkFolderExistsInLibrary: Action<
-    { folder: string; timeout?: number; binary?: boolean },
-    boolean
-  >
-  createFolderInLibrary: Action<
-    { accessToken: string; folder: string; timeout?: number; binary?: boolean },
-    string
-  >
-  deleteDocumentFromLibrary: Action<
-    {
-      accessToken: string
-      folder: string
-      fileName: string
-      timeout?: number
-      binary?: boolean
-    },
-    string
-  >
-  deleteListItem: Action<
-    {
-      accessToken: string
-      listName: string
-      spId: number
-      timeout?: number
-      binary?: boolean
-    },
-    string
-  >
-  getAuthToken: Action<{ timeout?: number; binary?: boolean }, string>
-  getDocumentFromLibrary: Action<
-    { folder: string; fileName: string; timeout?: number; binary?: boolean },
-    Buffer
-  >
-  getFolderContents: Action<
-    {
-      folder: string
-      params?: URLSearchParams
-      timeout?: number
-      binary?: boolean
-    },
-    unknown[]
-  >
-  getFormDigestValue: Action<{ timeout?: number; binary?: boolean }, string>
-  getListContents: Action<
-    {
-      listName: string
-      params?: URLSearchParams
-      timeout?: number
-      binary?: boolean
-    },
-    unknown[]
-  >
-  getListItem: Action<
-    { listName: string; spId: number; timeout?: number; binary?: boolean },
-    unknown
-  >
-  getListItemType: Action<
-    { listName: string; timeout?: number; binary?: boolean },
-    string
-  >
-  updateListItem: Action<
-    {
-      accessToken: string
-      listName: string
-      spId: number
-      patch: string
-      timeout?: number
-      binary?: boolean
-    },
-    string
-  >
+  /**
+   * Attaches a file to an existing list item.
+   *
+   * `POST /_api/web/lists/GetByTitle('{listName}')/items('{spId}')/AttachmentFiles/add(FileName='{fileName}')`
+   *
+   * @returns `data` is the server-relative URL of the new attachment.
+   */
+  addAttachmentToListItem: Action<AddAttachmentToListItemOptions, string>
+  /**
+   * Uploads a file to a document library folder, overwriting any existing
+   * file with the same name.
+   *
+   * `POST /_api/web/GetFolderByServerRelativeUrl('{serverRelativeUrl}/{folder}')/Files/add(url='{fileName}',overwrite=true)`
+   *
+   * @returns `data` is the server-relative URL of the uploaded file.
+   */
+  addDocumentToLibrary: Action<AddDocumentToLibraryOptions, string>
+  /**
+   * Creates a list item.
+   *
+   * `POST /_api/web/lists/GetByTitle('{listName}')/items`
+   *
+   * @returns `data` is the created item as a raw JSON string
+   *   (`odata=nometadata`); `JSON.parse` it to read the new `Id`.
+   * @example
+   * const [type, digest] = await Promise.all([
+   *   connection.getListItemType({ listName: 'Tasks' }),
+   *   connection.getFormDigestValue({}),
+   * ])
+   * if (!type.success || !digest.success) throw new Error('setup failed')
+   * const created = await connection.addListItem({
+   *   accessToken: digest.data,
+   *   listName: 'Tasks',
+   *   payload: JSON.stringify({ __metadata: { type: type.data }, Title: 'Hello' }),
+   * })
+   */
+  addListItem: Action<AddListItemOptions, string>
+  /**
+   * Checks whether a folder exists.
+   *
+   * `GET /_api/web/GetFolderByServerRelativeUrl('{serverRelativeUrl}/{folder}')/Exists`
+   *
+   * @returns `data` is `true` or `false`. A missing folder is a successful
+   *   `false`, not a `Failure`.
+   */
+  checkFolderExistsInLibrary: Action<CheckFolderExistsInLibraryOptions, boolean>
+  /**
+   * Creates a folder. The parent folder must already exist.
+   *
+   * `POST /_api/web/folders`
+   *
+   * @returns `data` is the server-relative URL of the new folder.
+   */
+  createFolderInLibrary: Action<CreateFolderInLibraryOptions, string>
+  /**
+   * Deletes a file from a document library.
+   *
+   * `POST /_api/web/GetFileByServerRelativeUrl('{serverRelativeUrl}/{folder}/{fileName}')` with `X-HTTP-Method: DELETE`
+   *
+   * @returns `data` is the deleted `fileName`.
+   */
+  deleteDocumentFromLibrary: Action<DeleteDocumentFromLibraryOptions, string>
+  /**
+   * Deletes a list item.
+   *
+   * `POST /_api/web/lists/GetByTitle('{listName}')/items('{spId}')` with `X-HTTP-Method: DELETE`
+   *
+   * @returns `data` is an empty string.
+   */
+  deleteListItem: Action<DeleteListItemOptions, string>
+  /**
+   * Performs the NTLM handshake against the site and returns the resulting
+   * `Authorization` header value (NTLM Type 3 message).
+   *
+   * This is a low-level diagnostic: NTLM authenticates the TCP connection,
+   * not the request, so the value cannot be reused for later requests. Use it
+   * to verify credentials, not to obtain an `accessToken` — that comes from
+   * {@link SiteConnection.getFormDigestValue}.
+   *
+   * @returns `data` is the `NTLM <base64>` header value.
+   */
+  getAuthToken: Action<RequestOptions, string>
+  /**
+   * Downloads a file.
+   *
+   * `GET /_api/web/GetFolderByServerRelativeUrl('{serverRelativeUrl}/{folder}')/Files('{fileName}')/$value`
+   *
+   * @returns `data` is the file contents as a `Buffer`.
+   */
+  getDocumentFromLibrary: Action<GetDocumentFromLibraryOptions, Buffer>
+  /**
+   * Lists the files directly inside a folder (subfolders are not included).
+   *
+   * `GET /_api/web/GetFolderByServerRelativeUrl('{serverRelativeUrl}/{folder}')/Files?{params}`
+   *
+   * @returns `data` is the OData `value` array; each element is a SharePoint
+   *   `SP.File` object (`Name`, `ServerRelativeUrl`, `Length`, `TimeLastModified`, …).
+   */
+  getFolderContents: Action<GetFolderContentsOptions, unknown[]>
+  /**
+   * Obtains a request digest, required as `accessToken` by every write
+   * action.
+   *
+   * `POST /_api/contextinfo`
+   *
+   * @returns `data` is the `FormDigestValue` string. It expires (30 minutes
+   *   by default); request a new one per batch of writes.
+   */
+  getFormDigestValue: Action<RequestOptions, string>
+  /**
+   * Queries list items.
+   *
+   * `GET /_api/web/lists/GetByTitle('{listName}')/items?{params}`
+   *
+   * @returns `data` is the OData `value` array. Narrow it to your item shape:
+   *   `res.data as MyItem[]`.
+   * @example
+   * const params = new URLSearchParams({ $select: 'Id,Title', $top: '500' })
+   * const res = await connection.getListContents({ listName: 'Tasks', params })
+   */
+  getListContents: Action<GetListContentsOptions, unknown[]>
+  /**
+   * Reads a single list item by `ID`.
+   *
+   * `GET /_api/web/lists/GetByTitle('{listName}')/items('{spId}')`
+   *
+   * @returns `data` is the item object (`odata=nometadata`).
+   */
+  getListItem: Action<GetListItemOptions, unknown>
+  /**
+   * Reads the list's entity type name, needed in `__metadata.type` when
+   * creating or updating items.
+   *
+   * `GET /_api/web/lists/GetByTitle('{listName}')?$select=ListItemEntityTypeFullName`
+   *
+   * @returns `data` is e.g. `'SP.Data.TasksListItem'`.
+   */
+  getListItemType: Action<GetListItemTypeOptions, string>
+  /**
+   * Partially updates a list item (OData MERGE with `If-Match: *`, so the
+   * last write wins).
+   *
+   * `POST /_api/web/lists/GetByTitle('{listName}')/items('{spId}')` with `X-HTTP-Method: MERGE`
+   *
+   * @returns `data` echoes back the `patch` string; SharePoint returns no body
+   *   for a successful MERGE.
+   */
+  updateListItem: Action<UpdateListItemOptions, string>
 }
 
+/** Signature of `createSiteConnection`. */
 export type SiteConnectionFactory = (
   options: SiteConnectionOptions
 ) => SiteConnection

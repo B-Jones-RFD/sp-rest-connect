@@ -1,12 +1,21 @@
-import type { ActionFactory } from '../types'
+import type {
+  ActionFactory,
+  RequestOptions,
+  SiteConnection,
+  SiteConnectionOptions,
+} from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 import { safeParseFormDigestValue } from '../utils'
 
-export const getFormDigestValue: ActionFactory<
-  { timeout?: number; binary?: boolean },
-  string
-> =
+/**
+ * Obtains the request digest required as `accessToken` by every write action.
+ *
+ * Factory form of {@link SiteConnection.getFormDigestValue}: call with your
+ * {@link SiteConnectionOptions} to get a reusable action. See the
+ * `SiteConnection` member for full parameter and return documentation.
+ */
+export const getFormDigestValue: ActionFactory<RequestOptions, string> =
   ({
     username,
     password,

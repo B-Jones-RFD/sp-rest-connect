@@ -1,18 +1,20 @@
-import type { ActionFactory } from '../types'
+import type {
+  ActionFactory,
+  UpdateListItemOptions,
+  SiteConnection,
+  SiteConnectionOptions,
+} from '../types'
 import os from 'os'
 import { post } from '../ntlm'
 
-export const updateListItem: ActionFactory<
-  {
-    accessToken: string
-    listName: string
-    spId: number
-    patch: string
-    timeout?: number
-    binary?: boolean
-  },
-  string
-> =
+/**
+ * Partially updates a list item (OData MERGE, last write wins). Echoes back `patch`.
+ *
+ * Factory form of {@link SiteConnection.updateListItem}: call with your
+ * {@link SiteConnectionOptions} to get a reusable action. See the
+ * `SiteConnection` member for full parameter and return documentation.
+ */
+export const updateListItem: ActionFactory<UpdateListItemOptions, string> =
   ({
     site,
     serverRelativeUrl,

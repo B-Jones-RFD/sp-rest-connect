@@ -1,395 +1,229 @@
-![GitHub Actions CI](https://github.com/B-Jones-RFD/sp-rest-connect/actions/workflows/main.yml/badge.svg)
-[![npm version](https://img.shields.io/npm/v/@b-jones-rfd/sp-rest-connect.svg?style=flat-square)](https://www.npmjs.com/package/@b-jones-rfd/sp-rest-connect)
-[![npm bundle size](https://img.shields.io/bundlephobia/min/%40b-jones-rfd%2Fsp-rest-connect)](https://bundlephobia.com/package/@b-jones-rfd/sp-rest-connect)
+[![CI](https://github.com/B-Jones-RFD/sp-rest-connect/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/B-Jones-RFD/sp-rest-connect/actions/workflows/main.yml)
+[![npm version](https://img.shields.io/npm/v/%40b-jones-rfd%2Fsp-rest-connect?style=flat-square)](https://www.npmjs.com/package/@b-jones-rfd/sp-rest-connect)
+[![npm unpacked size](https://img.shields.io/npm/unpacked-size/%40b-jones-rfd%2Fsp-rest-connect?style=flat-square)](https://www.npmjs.com/package/@b-jones-rfd/sp-rest-connect)
+[![node](https://img.shields.io/node/v/%40b-jones-rfd%2Fsp-rest-connect?style=flat-square)](https://nodejs.org)
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
 
 # SharePoint REST Connect
 
-Use SharePoint REST Services to interact with lists and document libraries. I got tired of rewriting these for work projects.
+A small, dependency-free Node.js client for **on-premises SharePoint** REST
+services, with built-in NTLMv2 authentication. Read and write list items,
+upload and download documents, manage folders. Every call returns a typed
+`Result` instead of throwing.
 
-## Prerequisites
+I got tired of rewriting these for work projects.
 
-This project requires NodeJS and NPM.
-[Node](http://nodejs.org/) and [NPM](https://npmjs.org/) are really easy to install.
-To make sure you have them available on your machine,
-try running the following command.
+## Requirements
 
-```sh
-$ npm -v && node -v
-10.2.4
-v20.11.1
-```
-
-[PNPM](https://pnpm.io/) is an awesome alternative to NPM and is recommended.
-
-Node 22 or later is required. The package has **no runtime dependencies**: NTLM
-authentication is implemented in-house on top of `node:http`/`node:https` and
-`node:crypto`.
+- **Node.js 22 or later.**
+- **On-premises SharePoint** — 2013, 2016, 2019 or Subscription Edition — with
+  NTLM authentication enabled. SharePoint Online is **not** supported; it does
+  not accept NTLM.
+- Nothing else. There are no runtime dependencies: NTLM is implemented on top
+  of `node:http`/`node:https` and `node:crypto`.
 
 ### Authentication
 
-Only **NTLMv2** is supported. SharePoint servers that negotiate extended
-security (SharePoint 2013 and later by default) send the target information
-NTLMv2 requires. If a server responds without it, requests fail with
-`NTLM server did not send target info` rather than silently downgrading to
-NTLMv1, which is both insecure and unavailable in Node's OpenSSL 3 build.
-
-## Table of contents
-
-- [SharePoint REST Connect](#sharepoint-rest-connect)
-  - [Prerequisites](#prerequisites)
-  - [Table of contents](#table-of-contents)
-  - [Getting Started](#getting-started)
-  - [Installation](#installation)
-  - [Usage](#usage)
-  - [API](#api)
-    - [createSiteConnection](#createsiteconnection)
-    - [Actions](#actions)
-  - [Responses](#responses)
-  - [Contributing](#contributing)
-  - [Versioning](#versioning)
-  - [Authors](#authors)
-  - [License](#license)
-
-## Getting Started
-
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
+Only **NTLMv2** is supported. SharePoint 2013 and later negotiate it by
+default. If a server does not send the target information NTLMv2 requires,
+requests fail with `NTLM server did not send target info` rather than silently
+downgrading to NTLMv1, which is insecure and unavailable in Node's OpenSSL 3
+build.
 
 ## Installation
 
-**BEFORE YOU INSTALL:** please read the [prerequisites](#prerequisites)
-
-To install and set up the library, run:
-
 ```sh
-$ npm i @b-jones-rfd/sp-rest-connect
+npm i @b-jones-rfd/sp-rest-connect
+# or
+pnpm add @b-jones-rfd/sp-rest-connect
+# or
+yarn add @b-jones-rfd/sp-rest-connect
 ```
 
-Or if you prefer using Yarn:
-
-```sh
-$ yarn add @b-jones-rfd/sp-rest-connect
-```
-
-Or for PNPM:
-
-```sh
-$ pnpm add @b-jones-rfd/sp-rest-connect
-```
-
-## Usage
-
-### Instance Methods
-
-Actions can be performed against site collection lists or document libraries using instance methods on a SiteConnection instance.
+## Quick start
 
 ```ts
 import { createSiteConnection } from '@b-jones-rfd/sp-rest-connect'
-import type { SiteConnection } from '@b-jones-rfd/sp-rest-connect'
 
-const siteConnectionOptions = {
-  username: 'tim',
-  password: 'myexceptionalsecurepassword',
-  site: 'my.sharepoint.com',
-  serverRelativeUrl: '/path/to/my/site',
-  protocol: 'https' as const,
-}
-
-const connection: SiteConnection = createSiteConnection(siteConnectionOptions)
-
-const params = new URLSearchParams({
-  $select: 'Id,Title',
-  $top: '200',
+const connection = createSiteConnection({
+  username: 'jsmith',
+  password: process.env.SP_PASSWORD!,
+  domain: 'CONTOSO', // NTLM (NetBIOS) domain, not a DNS name
+  site: 'sharepoint.contoso.local',
+  serverRelativeUrl: '/sites/finance',
 })
 
-async function getMyListUsingConnection(listName: string) {
-  const contents = await connection.getListContents({ listName, params })
-  if (contents.success) return contents.data
-  else throw new Error(contents.error)
-}
+// Read
+const params = new URLSearchParams({ $select: 'Id,Title', $top: '500' })
+const items = await connection.getListContents({ listName: 'Invoices', params })
+if (!items.success) throw new Error(items.error)
+console.log(items.data) // unknown[] — narrow with `as Invoice[]`
+
+// Write: every write needs a request digest and the list's entity type
+const [type, digest] = await Promise.all([
+  connection.getListItemType({ listName: 'Invoices' }),
+  connection.getFormDigestValue({}),
+])
+if (!type.success) throw new Error(type.error)
+if (!digest.success) throw new Error(digest.error)
+
+const created = await connection.addListItem({
+  accessToken: digest.data,
+  listName: 'Invoices',
+  payload: JSON.stringify({
+    __metadata: { type: type.data },
+    Title: 'INV-1042',
+    Amount: 1250,
+  }),
+})
+if (created.success) console.log(JSON.parse(created.data).Id)
 ```
 
-### Factory Action Methods
+More examples, including document upload, are in [`examples/basic.ts`](examples/basic.ts).
 
-Additionally, for single use or reduced import size, action factory methods can be imported directly. Call the factory method with a SiteConnectionOptions object to return an asynchronous action function that can be called directly.
+## Usage
+
+### Site connection
+
+`createSiteConnection(options)` binds every action to one site and returns a
+`SiteConnection`. Creating a connection performs no network I/O; credentials
+are captured in closures and used on each call.
+
+| Option              | Type                | Required | Default         | Description                                                                                     |
+| ------------------- | ------------------- | -------- | --------------- | ----------------------------------------------------------------------------------------------- |
+| `username`          | `string`            | Y        |                 | Windows account name, without the domain.                                                       |
+| `password`          | `string`            | Y        |                 | Account password. Read it from the environment rather than hard-coding it.                      |
+| `site`              | `string`            | Y        |                 | Host name only, e.g. `'sharepoint.contoso.local'`.                                              |
+| `serverRelativeUrl` | `string`            | Y        |                 | Site (web) path, e.g. `'/sites/finance'`. All `folder` arguments are resolved relative to this. |
+| `protocol`          | `'https' \| 'http'` | N        | `'https'`       |                                                                                                 |
+| `domain`            | `string`            | N        | `''`            | NTLM (NetBIOS) domain, e.g. `'CONTOSO'`. Leave empty for a server-local account.                |
+| `hostname`          | `string`            | N        | `os.hostname()` | Workstation name sent in the NTLM handshake. Rarely needs changing.                             |
+
+### Standalone actions
+
+For single use, or to import only what you need, each action is also exported
+as a factory. Call it with the same options object to get a reusable action:
 
 ```ts
 import { getListContents } from '@b-jones-rfd/sp-rest-connect'
 
-// siteConnectionOptions and params as defined above
-async function getMyListUsingAction(listName: string) {
-  const action = getListContents(siteConnectionOptions)
-  const contents = await action({ listName, params })
-  if (contents.success) return contents.data
-  else throw new Error(contents.error)
-}
+const fetchList = getListContents(siteConnectionOptions)
+const items = await fetchList({ listName: 'Invoices' })
 ```
+
+### Results
+
+Every action resolves to a `Result<T>` and never throws:
+
+```ts
+type Result<T> = { success: true; data: T } | { success: false; error: string }
+```
+
+Check `success` to narrow. Error messages are prefixed with the action name,
+e.g. `Error in getListContents: ...`.
+
+### Write operations: the request digest
+
+SharePoint requires an `X-RequestDigest` header on every write. Obtain one
+with `getFormDigestValue()` and pass it as `accessToken` to any write action.
+Digests expire (30 minutes by default), so fetch one per batch of writes.
+
+`getAuthToken()` is **not** this value — it returns the NTLM handshake header,
+which is connection-bound and only useful as a credentials check.
+
+### Creating and updating items
+
+`addListItem` and `updateListItem` take a JSON **string**, and SharePoint
+requires it to carry the list's entity type:
+
+```ts
+const type = await connection.getListItemType({ listName: 'Invoices' })
+// type.data === 'SP.Data.InvoicesListItem'
+
+const payload = JSON.stringify({
+  __metadata: { type: type.data },
+  Title: 'INV-1042',
+})
+```
+
+`updateListItem` is a partial update (OData `MERGE` with `If-Match: *`): only
+the fields in `patch` change, and the last writer wins.
+
+### Folders
+
+Every `folder` argument is relative to `serverRelativeUrl` and starts with the
+library name: `'Shared Documents'`, `'Shared Documents/Reports/2026'`.
+
+### Common options
+
+Every action also accepts:
+
+| Option    | Type      | Default | Description                                                                                                                                                                                 |
+| --------- | --------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `timeout` | `number`  | none    | Socket inactivity timeout in milliseconds.                                                                                                                                                  |
+| `binary`  | `boolean` | `false` | Return the raw body as a `Buffer` instead of a string. Only `getDocumentFromLibrary` uses this (default `true` there); other actions need a string body and will return a `Failure` if set. |
 
 ## API
 
-### createSiteConnection
-
-#### SiteConnectionOptions
-
-`username`
-
-| Type   | Description         | Example |
-| ------ | ------------------- | ------- |
-| string | SharePoint username | 'user'  |
-
-`password`
-
-| Type   | Description         |
-| ------ | ------------------- |
-| string | SharePoint password |
-
-`site`
-
-| Type   | Description       | Example               | Required |
-| ------ | ----------------- | --------------------- | -------- |
-| string | SharePoint domain | sharepoint.domain.com | Y        |
-
-`serverRelativeUrl`
-
-| Type   | Description                  | Example          | Required |
-| ------ | ---------------------------- | ---------------- | -------- |
-| string | SharePoint site relative Url | /path/to/my/site | Y        |
-
-`protocol`
-
-| Type   | Default value | Options           | Description   | Required |
-| ------ | ------------- | ----------------- | ------------- | -------- |
-| string | 'https'       | 'https' or 'http' | Site protocol | N        |
-
-`domain`
-
-| Type   | Default value | Description | Required |
-| ------ | ------------- | ----------- | -------- |
-| string | ''            | NTLM domain | N        |
-
-`hostname`
-
-| Type   | Default value | Description | Required |
-| ------ | ------------- | ----------- | -------- |
-| string | os.hostname() | OS Hostname | N        |
-
-### Actions
-
-SiteConnection instance action methods.
-
-```ts
-export type Action<TConfig, TResponse> = (
-  options: TConfig
-) => Promise<Result<TResponse>>
-```
-
-If using the actions directly call the factory method with a SiteConnectionOptions object to return an action that can be used to execute a SharePoint action.
-
-#### addAttachmentToListItem(options)
-
-`options`
-
-| Property    | Type    | Description                    | Required | Default |
-| ----------- | ------- | ------------------------------ | -------- | ------- |
-| accessToken | string  | SharePoint access token        | Y        |         |
-| listName    | string  | SharePoint list name           | Y        |         |
-| spId        | number  | SharePoint list item ID        | Y        |         |
-| fileName    | string  | File name                      | Y        |         |
-| payload     | Buffer  | File contents                  | Y        |         |
-| timeout     | number  | Request timeout (milliseconds) | N        | 0       |
-| binary      | boolean | Stream response                | N        | false   |
-
-#### addDocumentToLibrary(options)
-
-`options`
-
-| Property    | Type    | Description                    | Required | Default |
-| ----------- | ------- | ------------------------------ | -------- | ------- |
-| accessToken | string  | SharePoint access token        | Y        |         |
-| folder      | string  | SharePoint folder name         | Y        |         |
-| fileName    | string  | File name                      | Y        |         |
-| payload     | Buffer  | File contents                  | Y        |         |
-| timeout     | number  | Request timeout (milliseconds) | N        | 0       |
-| binary      | boolean | Stream response                | N        | false   |
-
-#### addListItem(options)
-
-`options`
-
-| Property    | Type    | Description                    | Required | Default |
-| ----------- | ------- | ------------------------------ | -------- | ------- |
-| accessToken | string  | SharePoint access token        | Y        |         |
-| listName    | string  | SharePoint list name           | Y        |         |
-| payload     | string  | List item JSON as string       | Y        |         |
-| timeout     | number  | Request timeout (milliseconds) | N        | 0       |
-| binary      | boolean | Stream response                | N        | false   |
-
-#### checkFolderExistsInLibrary(options)
-
-`options`
-
-| Property | Type    | Description                      | Required | Default |
-| -------- | ------- | -------------------------------- | -------- | ------- |
-| folder   | string  | SharePoint folder/subfolder name | Y        |         |
-| timeout  | number  | Request timeout (milliseconds)   | N        | 0       |
-| binary   | boolean | Stream response                  | N        | false   |
-
-#### createFolderInLibrary(options)
-
-`options`
-
-| Property    | Type    | Description                      | Required | Default |
-| ----------- | ------- | -------------------------------- | -------- | ------- |
-| accessToken | string  | SharePoint access token          | Y        |         |
-| folder      | string  | SharePoint folder/subfolder name | Y        |         |
-| timeout     | number  | Request timeout (milliseconds)   | N        | 0       |
-| binary      | boolean | Stream response                  | N        | false   |
-
-#### deleteDocumentFromLibrary(options)
-
-`options`
-
-| Property    | Type    | Description                      | Required | Default |
-| ----------- | ------- | -------------------------------- | -------- | ------- |
-| accessToken | string  | SharePoint access token          | Y        |         |
-| folder      | string  | SharePoint folder/subfolder name | Y        |         |
-| fileName    | string  | File name                        | Y        |         |
-| timeout     | number  | Request timeout (milliseconds)   | N        | 0       |
-| binary      | boolean | Stream response                  | N        | false   |
-
-#### deleteListItem(options)
-
-`options`
-
-| Property    | Type    | Description                    | Required | Default |
-| ----------- | ------- | ------------------------------ | -------- | ------- |
-| accessToken | string  | SharePoint access token        | Y        |         |
-| listName    | string  | SharePoint list name           | Y        |         |
-| spId        | number  | SharePoint list item ID        | Y        |         |
-| timeout     | number  | Request timeout (milliseconds) | N        | 0       |
-| binary      | boolean | Stream response                | N        | false   |
-
-#### getAuthToken(options)
-
-`options`
-
-| Property | Type    | Description                    | Required | Default |
-| -------- | ------- | ------------------------------ | -------- | ------- |
-| timeout  | number  | Request timeout (milliseconds) | N        | 0       |
-| binary   | boolean | Stream response                | N        | false   |
-
-#### getFormDigestValue(options)
-
-`options`
-
-| Property | Type    | Description                    | Required | Default |
-| -------- | ------- | ------------------------------ | -------- | ------- |
-| timeout  | number  | Request timeout (milliseconds) | N        | 0       |
-| binary   | boolean | Stream response                | N        | false   |
-
-#### getDocumentFromLibrary(options)
-
-`options`
-
-| Property | Type    | Description                    | Required | Default |
-| -------- | ------- | ------------------------------ | -------- | ------- |
-| folder   | string  | SharePoint folder name         | Y        |         |
-| fileName | string  | File name                      | Y        |         |
-| timeout  | number  | Request timeout (milliseconds) | N        | 0       |
-| binary   | boolean | Stream response                | N        | true    |
-
-#### getFolderContents(options)
-
-`options`
-
-| Property | Type            | Description                      | Required | Default |
-| -------- | --------------- | -------------------------------- | -------- | ------- |
-| folder   | string          | SharePoint folder/subfolder name | Y        |         |
-| params   | URLSearchParams | OData query parameters           | N        |         |
-| timeout  | number          | Request timeout (milliseconds)   | N        | 0       |
-| binary   | boolean         | Stream response                  | N        | false   |
-
-#### getListContents(options)
-
-`options`
-
-| Property | Type            | Description                    | Required | Default |
-| -------- | --------------- | ------------------------------ | -------- | ------- |
-| listName | string          | SharePoint list name           | Y        |         |
-| params   | URLSearchParams | OData query parameters         | N        |         |
-| timeout  | number          | Request timeout (milliseconds) | N        | 0       |
-| binary   | boolean         | Stream response                | N        | false   |
-
-#### getListItem(options)
-
-`options`
-
-| Property | Type    | Description                    | Required | Default |
-| -------- | ------- | ------------------------------ | -------- | ------- |
-| listName | string  | SharePoint list name           | Y        |         |
-| spId     | number  | SharePoint list item ID        | Y        |         |
-| timeout  | number  | Request timeout (milliseconds) | N        | 0       |
-| binary   | boolean | Stream response                | N        | false   |
-
-#### getListItemType(options)
-
-`options`
-
-| Property | Type    | Description                    | Required | Default |
-| -------- | ------- | ------------------------------ | -------- | ------- |
-| listName | string  | SharePoint list name           | Y        |         |
-| timeout  | number  | Request timeout (milliseconds) | N        | 0       |
-| binary   | boolean | Stream response                | N        | false   |
-
-#### updateListItem(options)
-
-`options`
-
-| Property    | Type    | Description                      | Required | Default |
-| ----------- | ------- | -------------------------------- | -------- | ------- |
-| accessToken | string  | SharePoint access token          | Y        |         |
-| listName    | string  | SharePoint list name             | Y        |         |
-| spId        | number  | SharePoint list item ID          | Y        |         |
-| patch       | string  | Updated list item JSON as string | Y        |         |
-| timeout     | number  | Request timeout (milliseconds)   | N        | 0       |
-| binary      | boolean | Stream response                  | N        | false   |
-
-## Responses
-
-Responses are provided based on the Result type. Success can be determined by checking the success property.
-
-```ts
-export type Result<TResponse> = Success<TResponse> | Failure
-```
-
-### Success
-
-Response is returned in the data property.
-
-```ts
-type Success<TResponse> = { success: true; data: TResponse }
-```
-
-### Failure
-
-Errors are returned in the error property.
-
-```ts
-type Failure = { success: false; error: string }
-```
+All option types are exported (`AddListItemOptions`, `GetListContentsOptions`,
+…) and every member below is documented inline, so hovering in your editor
+shows the same details. `accessToken` means a digest from
+`getFormDigestValue`; `listName` is the list's display title.
+
+### Lists
+
+| Action                                                                        | Required options                              | `data`                                                                 |
+| ----------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------- |
+| `getListContents({ listName, params? })`                                      | —                                             | `unknown[]` — OData `value` array. Without `$top` you get ≤ 100 items. |
+| `getListItem({ listName, spId })`                                             | —                                             | `unknown` — the item object.                                           |
+| `getListItemType({ listName })`                                               | —                                             | `string` — e.g. `'SP.Data.InvoicesListItem'`.                          |
+| `addListItem({ accessToken, listName, payload })`                             | `payload`: JSON string with `__metadata.type` | `string` — created item as raw JSON; `JSON.parse` for the new `Id`.    |
+| `updateListItem({ accessToken, listName, spId, patch })`                      | `patch`: JSON string with `__metadata.type`   | `string` — echoes `patch` (SharePoint returns no body).                |
+| `deleteListItem({ accessToken, listName, spId })`                             | —                                             | `''`                                                                   |
+| `addAttachmentToListItem({ accessToken, listName, spId, fileName, payload })` | `payload`: `Buffer`                           | `string` — server-relative URL of the attachment.                      |
+
+### Document libraries
+
+| Action                                                             | Required options    | `data`                                                     |
+| ------------------------------------------------------------------ | ------------------- | ---------------------------------------------------------- |
+| `getFolderContents({ folder, params? })`                           | —                   | `unknown[]` — `SP.File` objects (`Name`, `Length`, …).     |
+| `getDocumentFromLibrary({ folder, fileName })`                     | —                   | `Buffer` — file contents.                                  |
+| `checkFolderExistsInLibrary({ folder })`                           | —                   | `boolean` — a missing folder is a successful `false`.      |
+| `createFolderInLibrary({ accessToken, folder })`                   | parent must exist   | `string` — server-relative URL of the new folder.          |
+| `addDocumentToLibrary({ accessToken, folder, fileName, payload })` | `payload`: `Buffer` | `string` — server-relative URL; overwrites existing files. |
+| `deleteDocumentFromLibrary({ accessToken, folder, fileName })`     | —                   | `string` — the deleted `fileName`.                         |
+
+### Authentication
+
+| Action                   | `data`                                                                     |
+| ------------------------ | -------------------------------------------------------------------------- |
+| `getFormDigestValue({})` | `string` — request digest for `accessToken`.                               |
+| `getAuthToken({})`       | `string` — NTLM Type 3 `Authorization` header. Diagnostic only; see above. |
+
+### Low-level NTLM transport
+
+The NTLM layer is exported for advanced use (`request`, `get`, `post`, `auth`,
+and the message builders in `createType1Message` / `parseType2Message` /
+`createType3Message`). These are stable but undocumented here; see the inline
+JSDoc in `src/ntlm/` if you need to call SharePoint endpoints this package
+does not wrap.
 
 ## Contributing
 
-This is a pet project to save me time at work.
+This is a pet project to save me time at work, but issues and PRs are welcome
+at [github.com/B-Jones-RFD/sp-rest-connect](https://github.com/B-Jones-RFD/sp-rest-connect/issues).
+
+```sh
+pnpm install
+pnpm dev        # vitest in watch mode
+pnpm ci         # lint, test, build
+pnpm changeset  # describe your change for the release notes
+```
 
 ## Versioning
 
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/B-Jones-RFD/sp-rest-connect/tags).
-
-## Authors
-
-- **B Jones RFD** - _Package Noob_ - [B-Jones-RFD](https://github.com/B-Jones-RFD)
+[SemVer](https://semver.org/). See the [CHANGELOG](CHANGELOG.md) for release notes and breaking changes.
 
 ## License
 
-[MIT License](https://github.com/B-Jones-RFD/sp-rest-connect/blob/main/LICENSE)
+[MIT](LICENSE)
