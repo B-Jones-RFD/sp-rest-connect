@@ -1,5 +1,0 @@
----
-'@b-jones-rfd/sp-rest-connect': major
----
-
-Remove the APIs deprecated during 4.x.**Breaking changes**- `accessToken` has been removed from every write action. Use `requestDigest`, or omit it and let the connection manage the digest.- `addListItem.payload` and `updateListItem.patch` no longer accept a JSON string; pass a plain object. The entity type is resolved automatically.- `addListItem` resolves to the created item (`T & { Id: number }`, via a new type parameter) instead of a raw JSON string. Replace `JSON.parse(res.data).Id` with `res.data.Id`. Both the `nometadata` and `verbose` response shapes are accepted; a response without an `Id` is a `PARSE` failure.- The NTLM transport (`get`, `post`, `auth`, `request`, and the message builders) is no longer exported. `SpRestError` and `parseSharePointError` remain public.See "Migrating to 5.0" in the README. Everything added in 4.x — structured`Failure` codes, `signal`, `agentOptions`, `retry`, typed reads, paging, themanaged digest, and streams — is unchanged.
