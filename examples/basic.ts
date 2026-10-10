@@ -42,12 +42,12 @@ export async function getMyListAlt(listName: string) {
 // Writing: the connection fetches and caches the request digest and the
 // list's entity type for you.
 export async function createTask(title: string) {
-  const created = await connection.addListItem({
+  const created = await connection.addListItem<{ Title: string }>({
     listName: 'Tasks',
     payload: { Title: title },
   })
   if (!created.success) throw new Error(created.error)
-  return JSON.parse(created.data) as { Id: number; Title: string }
+  return created.data
 }
 
 // Uploading a document from memory

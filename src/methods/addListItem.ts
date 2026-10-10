@@ -1,12 +1,14 @@
 import type {
-  ActionFactory,
+  AddListItemActionFactory,
   AddListItemOptions,
+  CreatedListItem,
+  Result,
   SiteConnection,
   SiteConnectionOptions,
 } from '../types'
 import os from 'os'
 import { post } from '../ntlm'
-import { encodePath, odataLiteral, success } from '../utils'
+import { encodePath, odataLiteral, safeParseCreatedItem } from '../utils'
 import { toFailure } from '../errors'
 import {
   createConnectionContext,
@@ -15,15 +17,14 @@ import {
 } from '../context'
 
 /**
- * Creates a list item. `payload` is a plain object (entity type resolved
- * automatically) or a legacy JSON string. Returns the created item as a raw
- * JSON string.
+ * Creates a list item from a plain object (entity type resolved
+ * automatically). Returns the created item, including its new `Id`.
  *
  * Factory form of {@link SiteConnection.addListItem}: call with your
  * {@link SiteConnectionOptions} to get a reusable action. See the
  * `SiteConnection` member for full parameter and return documentation.
  */
-export const addListItem: ActionFactory<AddListItemOptions, string> = (
+export const addListItem: AddListItemActionFactory = (
   options,
   context = createConnectionContext(options)
 ) => {
@@ -37,13 +38,12 @@ export const addListItem: ActionFactory<AddListItemOptions, string> = (
     agentOptions,
     hostname = os.hostname(),
   } = options
-  return async ({
-    accessToken,
+  return async <T = Record<string, unknown>>({
     requestDigest,
     listName,
     payload,
     ...optional
-  }) => {
+  }: AddListItemOptions): Promise<Result<CreatedListItem<T>>> => {
     const url = `${protocol}://${
       site + encodePath(serverRelativeUrl)
     }/_api/web/lists/GetByTitle('${odataLiteral(listName)}')/items`
@@ -60,7 +60,7 @@ export const addListItem: ActionFactory<AddListItemOptions, string> = (
     return withDigest(
       'addListItem',
       context,
-      requestDigest ?? accessToken,
+      requestDigest,
       optional,
       async (digest) => {
         try {
@@ -80,9 +80,7 @@ export const addListItem: ActionFactory<AddListItemOptions, string> = (
             body: body.data,
             ...optional,
           })
-          return success(
-            typeof result === 'string' ? result : JSON.stringify(result)
-          )
+          return safeParseCreatedItem(result) as Result<CreatedListItem<T>>
         } catch (error) {
           return toFailure('addListItem', error)
         }

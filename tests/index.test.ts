@@ -2,11 +2,16 @@ import { describe, it, expect } from 'vitest'
 import * as pkg from '../src'
 
 describe('public API', () => {
-  it('exports the connection factory and the NTLM transport', () => {
+  it('exports the connection factory and helpers, not the NTLM transport', () => {
     expect(typeof pkg.createSiteConnection).toBe('function')
-    expect(typeof pkg.get).toBe('function')
-    expect(typeof pkg.post).toBe('function')
-    expect(typeof pkg.auth).toBe('function')
+    expect(typeof pkg.createConnectionContext).toBe('function')
+    expect(typeof pkg.validateSiteConnectionOptions).toBe('function')
+    expect(typeof pkg.SpRestError).toBe('function')
+    expect(typeof pkg.parseSharePointError).toBe('function')
+    expect(typeof pkg.isTransientFailure).toBe('function')
+    const internal = pkg as Record<string, unknown>
+    for (const name of ['get', 'post', 'auth', 'request', 'createType1Message'])
+      expect(internal[name]).toBeUndefined()
   })
 
   it('exports every standalone method factory', () => {

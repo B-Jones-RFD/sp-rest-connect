@@ -447,15 +447,17 @@ describe('getListItemType', () => {
 })
 
 describe('addListItem', () => {
+  const typed = { __metadata: { type: 'SP.Data.TasksListItem' } }
+
   it('POSTs the payload with digest and verbose content type', async () => {
-    const { sp, server } = await connect(json({ d: { ID: 42 } }))
-    const payload = JSON.stringify({ Title: 'café' }) // multi-byte
-    const result = await sp.addListItem({
-      accessToken: DIGEST,
+    const { sp, server } = await connect(json({ Id: 42, Title: 'café' }))
+    const payload = JSON.stringify({ ...typed, Title: 'café' }) // multi-byte
+    const result = await sp.addListItem<{ Title: string }>({
+      requestDigest: DIGEST,
       listName: 'Tasks',
-      payload,
+      payload: { ...typed, Title: 'café' },
     })
-    expect(result).toStrictEqual(success('{"d":{"ID":42}}'))
+    expect(result).toStrictEqual(success({ Id: 42, Title: 'café' }))
     const leg = authenticatedLeg(server)
     expect(leg.method).toBe('POST')
     expect(path(leg)).toBe(
@@ -473,11 +475,35 @@ describe('addListItem', () => {
   it('returns the failure when the server rejects', async () => {
     const { sp } = await connect(json('bad digest', 403))
     await expect(
-      sp.addListItem({ accessToken: 'stale', listName: 'Tasks', payload: '{}' })
+      sp.addListItem({
+        requestDigest: 'stale',
+        listName: 'Tasks',
+        payload: typed,
+      })
     ).resolves.toStrictEqual({
       ...failure('Error in addListItem: HTTP 403: bad digest', 'AUTH'),
       status: 403,
     })
+  })
+
+  it('accepts the verbose response shape and normalises ID to Id', async () => {
+    const { sp } = await connect(json({ d: { ID: 9, Title: 'x' } }))
+    const result = await sp.addListItem({
+      listName: 'Tasks',
+      payload: typed,
+      requestDigest: DIGEST,
+    })
+    expect(result).toStrictEqual(success({ ID: 9, Id: 9, Title: 'x' }))
+  })
+
+  it('fails with PARSE when the response has no Id', async () => {
+    const { sp } = await connect(json({ Title: 'no id' }))
+    const result = await sp.addListItem({
+      listName: 'Tasks',
+      payload: typed,
+      requestDigest: DIGEST,
+    })
+    expect(result).toStrictEqual(failure('Id not in response', 'PARSE'))
   })
 })
 
@@ -487,12 +513,12 @@ describe('updateListItem', () => {
       res.statusCode = 204
       res.end()
     })
-    const patch = JSON.stringify({ Title: 'new' })
+    const patch = JSON.stringify({ __metadata: { type: 'T' }, Title: 'new' })
     const result = await sp.updateListItem({
-      accessToken: DIGEST,
+      requestDigest: DIGEST,
       listName: 'Tasks',
       spId: 3,
-      patch,
+      patch: { __metadata: { type: 'T' }, Title: 'new' },
     })
     expect(result.success).toBe(true)
     const leg = authenticatedLeg(server)
@@ -516,7 +542,7 @@ describe('deleteListItem', () => {
       res.end()
     })
     const result = await sp.deleteListItem({
-      accessToken: DIGEST,
+      requestDigest: DIGEST,
       listName: 'Tasks',
       spId: 9,
     })
@@ -542,7 +568,7 @@ describe('addAttachmentToListItem', () => {
     )
     const payload = Buffer.from([0x00, 0xff, 0x10, 0x80])
     const result = await sp.addAttachmentToListItem({
-      accessToken: DIGEST,
+      requestDigest: DIGEST,
       listName: 'Tasks',
       spId: 1,
       fileName: 'a.txt',
@@ -565,7 +591,7 @@ describe('addAttachmentToListItem', () => {
     const { sp } = await connect(json({ d: {} }))
     await expect(
       sp.addAttachmentToListItem({
-        accessToken: DIGEST,
+        requestDigest: DIGEST,
         listName: 'Tasks',
         spId: 1,
         fileName: 'a.txt',
@@ -582,7 +608,7 @@ describe('addDocumentToLibrary', () => {
     )
     const payload = Buffer.from('%PDF-1.4')
     const result = await sp.addDocumentToLibrary({
-      accessToken: DIGEST,
+      requestDigest: DIGEST,
       folder: 'Docs',
       fileName: 'r.pdf',
       payload,
@@ -642,7 +668,7 @@ describe('deleteDocumentFromLibrary', () => {
     })
     await expect(
       sp.deleteDocumentFromLibrary({
-        accessToken: DIGEST,
+        requestDigest: DIGEST,
         folder: 'Docs',
         fileName: 'r.pdf',
       })
@@ -662,7 +688,7 @@ describe('deleteDocumentFromLibrary', () => {
     const { sp } = await connect(json('locked', 423))
     await expect(
       sp.deleteDocumentFromLibrary({
-        accessToken: DIGEST,
+        requestDigest: DIGEST,
         folder: 'Docs',
         fileName: 'r.pdf',
       })
@@ -731,7 +757,7 @@ describe('createFolderInLibrary', () => {
     )
     await expect(
       sp.createFolderInLibrary({
-        accessToken: DIGEST,
+        requestDigest: DIGEST,
         folder: 'Docs/New',
       })
     ).resolves.toStrictEqual(success('/sites/test/Docs/New'))
@@ -787,31 +813,16 @@ describe('URL escaping', () => {
   })
 })
 
-describe('requestDigest alias', () => {
-  it('sends requestDigest as X-RequestDigest', async () => {
+describe('explicit requestDigest', () => {
+  it('is sent as X-RequestDigest', async () => {
     const { sp, server } = await connect(json({ d: { ID: 1 } }))
     await sp.addListItem({
       requestDigest: 'digest-new',
       listName: 'Tasks',
-      payload: '{}',
+      payload: { __metadata: { type: 'T' } },
     })
     expect(authenticatedLeg(server).headers['x-requestdigest']).toBe(
       'digest-new'
-    )
-  })
-
-  it('still accepts the deprecated accessToken on every write action', async () => {
-    const { sp, server } = await connect((_req, res) => {
-      res.statusCode = 204
-      res.end()
-    })
-    await sp.deleteListItem({
-      accessToken: 'digest-old',
-      listName: 'T',
-      spId: 1,
-    })
-    expect(authenticatedLeg(server).headers['x-requestdigest']).toBe(
-      'digest-old'
     )
   })
 })
@@ -1055,7 +1066,10 @@ describe('managed request digest', () => {
         ['/items', json({ d: { ID: 1 } })]
       )
     )
-    const a = await sp.addListItem({ listName: 'Tasks', payload: '{}' })
+    const a = await sp.addListItem({
+      listName: 'Tasks',
+      payload: { __metadata: { type: 'T' } },
+    })
     const b = await sp.deleteListItem({ listName: 'Tasks', spId: 1 })
     expect(a.success && b.success).toBe(true)
     expect(digestFetches(server)).toHaveLength(1)
@@ -1100,8 +1114,11 @@ describe('managed request digest', () => {
         ]
       )
     )
-    const result = await sp.addListItem({ listName: 'Tasks', payload: '{}' })
-    expect(result).toStrictEqual(success('{"d":{"ID":7}}'))
+    const result = await sp.addListItem({
+      listName: 'Tasks',
+      payload: { __metadata: { type: 'T' } },
+    })
+    expect(result).toStrictEqual(success({ ID: 7, Id: 7 }))
     expect(attempts).toBe(2)
     expect(digestFetches(server)).toHaveLength(2)
     expect(writes(server).map((w) => w.headers['x-requestdigest'])).toEqual([
@@ -1190,7 +1207,10 @@ describe('managed request digest', () => {
       serverRelativeUrl: SITE_PATH,
     }
     const ctx = createConnectionContext(options)
-    await addListItem(options, ctx)({ listName: 'Tasks', payload: '{}' })
+    await addListItem(
+      options,
+      ctx
+    )({ listName: 'Tasks', payload: { __metadata: { type: 'T' } } })
     await deleteListItem(options, ctx)({ listName: 'Tasks', spId: 1 })
     expect(digestFetches(server)).toHaveLength(1)
 
@@ -1286,13 +1306,15 @@ describe('object payloads', () => {
     })
   })
 
-  it('rejects payloads that are neither object nor string', async () => {
+  it('rejects payloads that are not plain objects', async () => {
     const { sp, server } = await connect(json({ d: { ID: 1 } }))
-    const result = await sp.addListItem({
-      listName: 'Tasks',
-      payload: [1, 2] as unknown as Record<string, unknown>,
-    })
-    expect(result).toMatchObject({ success: false, code: 'UNKNOWN' })
+    for (const bad of [[1, 2], '{"Title":"legacy string"}', null, 42]) {
+      const result = await sp.addListItem({
+        listName: 'Tasks',
+        payload: bad as unknown as Record<string, unknown>,
+      })
+      expect(result).toMatchObject({ success: false, code: 'UNKNOWN' })
+    }
     expect(server.requests).toHaveLength(0)
   })
 })

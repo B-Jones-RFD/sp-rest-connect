@@ -198,8 +198,6 @@ export interface RequestOptions {
  * from `/_api/contextinfo`, caches it until shortly before it expires, and
  * transparently refreshes it (retrying the write once) if SharePoint rejects
  * it with 403. Pass your own value to bypass the cache.
- *
- * `accessToken` is the pre-4.0 name for the same value and still works.
  */
 export type AuthenticatedRequestOptions = RequestOptions & {
   /**
@@ -208,18 +206,16 @@ export type AuthenticatedRequestOptions = RequestOptions & {
    * take control yourself.
    */
   requestDigest?: string
-  /** @deprecated Use `requestDigest`, or omit both to use the managed digest. */
-  accessToken?: string
 }
 
 /**
- * A list item to create or merge. Either a plain object — the entity type
- * (`__metadata.type`) is looked up and cached per list when absent — or,
- * for backwards compatibility, a pre-serialised JSON string.
- *
- * The `string` form is deprecated and will be removed in 5.0; pass an object.
+ * A list item to create or merge: a plain object of field values. The entity
+ * type (`__metadata.type`) is looked up and cached per list when absent.
  */
-export type ListItemPayload = Record<string, unknown> | string
+export type ListItemPayload = Record<string, unknown>
+
+/** The item SharePoint returns after a create: your fields plus the new `Id`. */
+export type CreatedListItem<T = Record<string, unknown>> = T & { Id: number }
 
 export type AddAttachmentToListItemOptions = AuthenticatedRequestOptions & {
   /** List display title, as shown in the SharePoint UI (not the URL segment). */
@@ -255,11 +251,9 @@ export type AddListItemOptions = AuthenticatedRequestOptions & {
   /** List display title, as shown in the SharePoint UI (not the URL segment). */
   listName: string
   /**
-   * The item's fields. Pass a plain object; the entity type is resolved via
+   * The item's fields. The entity type is resolved via
    * {@link SiteConnection.getListItemType} and cached per list. Include
    * `__metadata: { type }` yourself to skip the lookup.
-   *
-   * A pre-serialised JSON string is still accepted but deprecated.
    */
   payload: ListItemPayload
 }
@@ -367,11 +361,9 @@ export type UpdateListItemOptions = AuthenticatedRequestOptions & {
   /** Integer `ID` of the list item. */
   spId: number
   /**
-   * The fields to change (OData MERGE: fields you omit are untouched). Pass a
-   * plain object; the entity type is resolved and cached per list unless you
-   * include `__metadata: { type }` yourself.
-   *
-   * A pre-serialised JSON string is still accepted but deprecated.
+   * The fields to change (OData MERGE: fields you omit are untouched). The
+   * entity type is resolved and cached per list unless you include
+   * `__metadata: { type }` yourself.
    */
   patch: ListItemPayload
 }
@@ -450,17 +442,16 @@ export type SiteConnection = {
    *
    * `POST /_api/web/lists/GetByTitle('{listName}')/items`
    *
-   * @returns `data` is the created item as a raw JSON string
-   *   (`odata=nometadata`); `JSON.parse` it to read the new `Id`. (5.0 will
-   *   return the parsed object.)
+   * @returns `data` is the created item as SharePoint returned it, typed as
+   *   `T & { Id: number }` (unchecked beyond `Id`).
    * @example
-   * const created = await connection.addListItem({
+   * const created = await connection.addListItem<Task>({
    *   listName: 'Tasks',
    *   payload: { Title: 'Hello' },
    * })
-   * if (created.success) console.log(JSON.parse(created.data).Id)
+   * if (created.success) console.log(created.data.Id)
    */
-  addListItem: Action<AddListItemOptions, string>
+  addListItem: AddListItemAction
   /**
    * Checks whether a folder exists.
    *
@@ -644,6 +635,17 @@ export type SiteConnection = {
    */
   updateListItem: Action<UpdateListItemOptions, string>
 }
+
+/** `addListItem`: the caller chooses the item shape; `Id` is always present. */
+export type AddListItemAction = <T = Record<string, unknown>>(
+  options: AddListItemOptions
+) => Promise<Result<CreatedListItem<T>>>
+
+/** Factory for {@link AddListItemAction}. */
+export type AddListItemActionFactory = (
+  options: SiteConnectionOptions,
+  context?: ConnectionContext
+) => AddListItemAction
 
 /** Factory for a {@link PagedAction}. */
 export type PagedActionFactory<TConfig> = (

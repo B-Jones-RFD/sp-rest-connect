@@ -68,7 +68,7 @@ const created = await connection.addListItem({
   listName: 'Invoices',
   payload: { Title: 'INV-1042', Amount: 1250 },
 })
-if (created.success) console.log(JSON.parse(created.data).Id)
+if (created.success) console.log(created.data.Id)
 ```
 
 More examples, including document upload, are in [`examples/basic.ts`](examples/basic.ts).
@@ -160,8 +160,7 @@ and the write retried once. Concurrent writes share a single fetch.
 
 To manage the digest yourself, pass `requestDigest` explicitly — the cache is
 then bypassed, and no automatic retry happens. `getFormDigestValue()` fetches
-one. `accessToken` is the pre-4.0 name for the same option; it still works but
-is deprecated.
+one.
 
 Standalone action factories each keep their own cache. To share one, create a
 context and pass it as the second argument:
@@ -201,8 +200,9 @@ await connection.updateListItem({
 ```
 
 Include `__metadata: { type: 'SP.Data.InvoicesListItem' }` in the object
-yourself to skip the lookup. A pre-serialised JSON string is still accepted
-for backwards compatibility but is deprecated and will be removed in 5.0.
+yourself to skip the lookup. `addListItem` resolves to the created item as
+SharePoint returned it, with its new `Id`; pass a type parameter for the rest
+of the shape (`addListItem<Invoice>(...)`).
 
 `updateListItem` is a partial update (OData `MERGE` with `If-Match: *`): only
 the fields in `patch` change, and the last writer wins.
@@ -362,18 +362,18 @@ list's display title.
 
 ### Lists
 
-| Action                                                           | Required options                          | `data`                                                                         |
-| ---------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------ |
-| `getListContents<T>({ listName, params? })`                      | —                                         | `T[]` — one page; `nextLink` set when more remain. ≤ 100 items without `$top`. |
-| `getAllListContents<T>({ listName, params?, maxPages? })`        | —                                         | `T[]` — every page concatenated.                                               |
-| `iterateListContents<T>({ listName, params?, maxPages? })`       | —                                         | async iterator of `PageResult<T>`.                                             |
-| `getNextPage<T>({ nextLink })`                                   | —                                         | `T[]` — the linked page; same-origin links only.                               |
-| `getListItem<T>({ listName, spId })`                             | —                                         | `T` — the item object.                                                         |
-| `getListItemType({ listName })`                                  | —                                         | `string` — e.g. `'SP.Data.InvoicesListItem'`.                                  |
-| `addListItem({ listName, payload })`                             | `payload`: object (or legacy JSON string) | `string` — created item as raw JSON; `JSON.parse` for the new `Id`.            |
-| `updateListItem({ listName, spId, patch })`                      | `patch`: object (or legacy JSON string)   | `string` — the serialised patch (SharePoint returns no body).                  |
-| `deleteListItem({ listName, spId })`                             | —                                         | `''`                                                                           |
-| `addAttachmentToListItem({ listName, spId, fileName, payload })` | `payload`: `Buffer`                       | `string` — server-relative URL of the attachment.                              |
+| Action                                                           | Required options    | `data`                                                                         |
+| ---------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------ |
+| `getListContents<T>({ listName, params? })`                      | —                   | `T[]` — one page; `nextLink` set when more remain. ≤ 100 items without `$top`. |
+| `getAllListContents<T>({ listName, params?, maxPages? })`        | —                   | `T[]` — every page concatenated.                                               |
+| `iterateListContents<T>({ listName, params?, maxPages? })`       | —                   | async iterator of `PageResult<T>`.                                             |
+| `getNextPage<T>({ nextLink })`                                   | —                   | `T[]` — the linked page; same-origin links only.                               |
+| `getListItem<T>({ listName, spId })`                             | —                   | `T` — the item object.                                                         |
+| `getListItemType({ listName })`                                  | —                   | `string` — e.g. `'SP.Data.InvoicesListItem'`.                                  |
+| `addListItem<T>({ listName, payload })`                          | `payload`: object   | `T & { Id: number }` — the created item.                                       |
+| `updateListItem({ listName, spId, patch })`                      | `patch`: object     | `string` — the serialised patch (SharePoint returns no body).                  |
+| `deleteListItem({ listName, spId })`                             | —                   | `''`                                                                           |
+| `addAttachmentToListItem({ listName, spId, fileName, payload })` | `payload`: `Buffer` | `string` — server-relative URL of the attachment.                              |
 
 ### Document libraries
 
@@ -396,16 +396,29 @@ list's display title.
 | `getFormDigestValue({})` | `string` — a request digest, if you want to manage `requestDigest` yourself. |
 | `getAuthToken({})`       | `string` — NTLM Type 3 `Authorization` header. Diagnostic only; see above.   |
 
-### Low-level NTLM transport
+### Errors
 
-The NTLM helpers `get`, `post` and `auth` are still exported but
-**deprecated**: they are internal transport, offer no `Result` wrapping (they
-throw `SpRestError` on non-2xx), and will be removed from the public API in
-5.0. If you need a SharePoint endpoint this package does not wrap, please open
-an issue instead.
+`SpRestError` and `parseSharePointError(body)` are exported. The former is
+what the internal transport throws on a non-2xx response before an action
+turns it into a `Failure`; the latter extracts `{ code, message }` from either
+OData error-body shape. The NTLM transport itself is not part of the public
+API. If you need a SharePoint endpoint this package does not wrap, please open
+an issue.
 
-`SpRestError` and `parseSharePointError(body)` are exported and supported; the
-latter extracts `{ code, message }` from either OData error-body shape.
+## Migrating to 5.0
+
+- **`accessToken` is gone.** Use `requestDigest`, or omit it and let the
+  connection manage the digest.
+- **`addListItem` / `updateListItem` take objects only.** Replace
+  `payload: JSON.stringify({ __metadata: { type }, ... })` with
+  `payload: { ... }` — the entity type is resolved for you.
+- **`addListItem` resolves to the created item**, not a JSON string. Replace
+  `JSON.parse(res.data).Id` with `res.data.Id`.
+- **The NTLM helpers (`get`, `post`, `auth`, `request`, message builders) are
+  no longer exported.**
+
+Everything added in 4.x — structured `Failure` codes, `signal`, `agentOptions`,
+`retry`, typed reads, paging, the managed digest, streams — is unchanged.
 
 ## Contributing
 

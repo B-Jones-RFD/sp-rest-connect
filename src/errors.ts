@@ -1,9 +1,9 @@
 import type { Failure, FailureCode, SharePointError } from './types'
 
 /**
- * Thrown by the low-level transport when SharePoint answers with a non-2xx
- * status. Actions convert it into a {@link Failure}; it only reaches user code
- * through the deprecated `get`/`post` helpers.
+ * Thrown by the internal transport when SharePoint answers with a non-2xx
+ * status. Actions convert it into a {@link Failure}; it is exported so the
+ * `details` shape can be reused, not because user code should catch it.
  */
 export class SpRestError extends Error {
   readonly name = 'SpRestError'

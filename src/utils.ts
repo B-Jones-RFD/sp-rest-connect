@@ -1,5 +1,6 @@
 import { Readable } from 'node:stream'
 import type {
+  CreatedListItem,
   Failure,
   FailureCode,
   Page,
@@ -190,4 +191,24 @@ export function safeParseStream(res: any): Result<Readable> {
   return res instanceof Readable
     ? success(res)
     : failure('Incorrect response format')
+}
+
+/**
+ * Parses the body SharePoint returns after creating an item. Accepts both the
+ * `nometadata` shape (flat object) and the `verbose` shape (`{ d: {...} }`),
+ * and guarantees a numeric `Id`.
+ */
+export function safeParseCreatedItem(res: any): Result<CreatedListItem> {
+  if (typeof res !== 'string') return failure('Incorrect response format')
+  try {
+    const parsed = JSON.parse(res)
+    const item = parsed?.d ?? parsed
+    if (typeof item !== 'object' || item === null || Array.isArray(item))
+      return failure('Created item not in response')
+    const id = item.Id ?? item.ID
+    if (typeof id !== 'number') return failure('Id not in response')
+    return success({ ...item, Id: id })
+  } catch (error) {
+    return failure(`Unable to parse ${res}`)
+  }
 }

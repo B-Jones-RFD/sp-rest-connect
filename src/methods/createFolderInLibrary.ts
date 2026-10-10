@@ -31,7 +31,7 @@ export const createFolderInLibrary: ActionFactory<
     agentOptions,
     hostname = os.hostname(),
   } = options
-  return async ({ accessToken, requestDigest, folder, ...optional }) => {
+  return async ({ requestDigest, folder, ...optional }) => {
     const url = `${protocol}://${site + encodePath(serverRelativeUrl)}/_api/web/folders`
     const payload = JSON.stringify({
       ServerRelativeUrl: `${serverRelativeUrl}/${folder}`,
@@ -40,7 +40,7 @@ export const createFolderInLibrary: ActionFactory<
     return withDigest(
       'createFolderInLibrary',
       context,
-      requestDigest ?? accessToken,
+      requestDigest,
       optional,
       async (digest) => {
         try {

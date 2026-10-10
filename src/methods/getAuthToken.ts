@@ -11,7 +11,7 @@ import { toFailure } from '../errors'
 import { withRetry } from '../retry'
 
 /**
- * Runs the NTLM handshake and returns the Type 3 `Authorization` header value. Diagnostic only; this is NOT the `accessToken` for writes (see `getFormDigestValue`).
+ * Runs the NTLM handshake and returns the Type 3 `Authorization` header value. Diagnostic only; this is NOT the request digest for writes (see `getFormDigestValue`).
  *
  * Factory form of {@link SiteConnection.getAuthToken}: call with your
  * {@link SiteConnectionOptions} to get a reusable action. See the

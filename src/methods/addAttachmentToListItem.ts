@@ -32,7 +32,6 @@ export const addAttachmentToListItem: ActionFactory<
     hostname = os.hostname(),
   } = options
   return async ({
-    accessToken,
     requestDigest,
     listName,
     spId,
@@ -47,7 +46,7 @@ export const addAttachmentToListItem: ActionFactory<
     return withDigest(
       'addAttachmentToListItem',
       context,
-      requestDigest ?? accessToken,
+      requestDigest,
       optional,
       async (digest) => {
         try {

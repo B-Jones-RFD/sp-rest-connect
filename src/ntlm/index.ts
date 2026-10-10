@@ -21,7 +21,6 @@ function unwrap(
 
 /**
  * NTLM-authenticated GET. Resolves the response body on 2xx, rejects otherwise.
- * @deprecated Internal transport; will be removed from the public API in 5.0.
  */
 export async function get(options: GetOptions): Promise<unknown> {
   return unwrap('GET', options)
@@ -29,7 +28,6 @@ export async function get(options: GetOptions): Promise<unknown> {
 
 /**
  * NTLM-authenticated POST. Resolves the response body on 2xx, rejects otherwise.
- * @deprecated Internal transport; will be removed from the public API in 5.0.
  */
 export async function post(options: PostOptions): Promise<unknown> {
   return unwrap('POST', options)
@@ -38,7 +36,6 @@ export async function post(options: PostOptions): Promise<unknown> {
 /**
  * Perform the NTLM negotiate leg against `url` and return the resulting
  * Type 3 `Authorization` header value.
- * @deprecated Internal transport; will be removed from the public API in 5.0.
  */
 export async function auth(options: AuthOptions): Promise<string> {
   return authenticate(options)

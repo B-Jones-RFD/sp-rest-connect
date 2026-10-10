@@ -37,14 +37,7 @@ export const updateListItem: ActionFactory<UpdateListItemOptions, string> = (
     agentOptions,
     hostname = os.hostname(),
   } = options
-  return async ({
-    accessToken,
-    requestDigest,
-    listName,
-    spId,
-    patch,
-    ...optional
-  }) => {
+  return async ({ requestDigest, listName, spId, patch, ...optional }) => {
     const url = `${protocol}://${
       site + encodePath(serverRelativeUrl)
     }/_api/web/lists/GetByTitle('${odataLiteral(listName)}')/items('${spId}')`
@@ -61,7 +54,7 @@ export const updateListItem: ActionFactory<UpdateListItemOptions, string> = (
     return withDigest(
       'updateListItem',
       context,
-      requestDigest ?? accessToken,
+      requestDigest,
       optional,
       async (digest) => {
         try {

@@ -133,7 +133,7 @@ export async function withDigest<T>(
 
 /**
  * Serialises a list-item payload. Objects without `__metadata` get the
- * list's entity type from the cache; strings are passed through unchanged.
+ * list's entity type from the cache.
  */
 export async function serialiseListItem(
   action: string,
@@ -142,10 +142,9 @@ export async function serialiseListItem(
   payload: ListItemPayload,
   request: RequestOptions
 ): Promise<Result<string>> {
-  if (typeof payload === 'string') return success(payload)
   if (typeof payload !== 'object' || payload === null || Array.isArray(payload))
     return failure(
-      `Error in ${action}: payload must be a plain object or a JSON string`,
+      `Error in ${action}: payload must be a plain object`,
       'UNKNOWN'
     )
   if ('__metadata' in payload) return success(JSON.stringify(payload))

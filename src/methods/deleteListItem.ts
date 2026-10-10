@@ -31,13 +31,7 @@ export const deleteListItem: ActionFactory<DeleteListItemOptions, string> = (
     agentOptions,
     hostname = os.hostname(),
   } = options
-  return async ({
-    accessToken,
-    requestDigest,
-    listName,
-    spId,
-    ...optional
-  }) => {
+  return async ({ requestDigest, listName, spId, ...optional }) => {
     const url = `${protocol}://${
       site + encodePath(serverRelativeUrl)
     }/_api/web/lists/GetByTitle('${odataLiteral(listName)}')/items('${spId}')`
@@ -45,7 +39,7 @@ export const deleteListItem: ActionFactory<DeleteListItemOptions, string> = (
     return withDigest(
       'deleteListItem',
       context,
-      requestDigest ?? accessToken,
+      requestDigest,
       optional,
       async (digest) => {
         try {

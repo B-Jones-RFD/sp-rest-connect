@@ -39,7 +39,6 @@ export const addDocumentToLibrary: ActionFactory<
     hostname = os.hostname(),
   } = options
   return async ({
-    accessToken,
     requestDigest,
     folder,
     fileName,
@@ -57,7 +56,7 @@ export const addDocumentToLibrary: ActionFactory<
     return withDigest(
       'addDocumentToLibrary',
       context,
-      requestDigest ?? accessToken,
+      requestDigest,
       optional,
       async (digest) => {
         try {

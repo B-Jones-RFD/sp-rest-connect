@@ -31,13 +31,7 @@ export const deleteDocumentFromLibrary: ActionFactory<
     agentOptions,
     hostname = os.hostname(),
   } = options
-  return async ({
-    accessToken,
-    requestDigest,
-    folder,
-    fileName,
-    ...optional
-  }) => {
+  return async ({ requestDigest, folder, fileName, ...optional }) => {
     const url = `${protocol}://${
       site + encodePath(serverRelativeUrl)
     }/_api/web/GetFileByServerRelativeUrl('${odataPath(`${serverRelativeUrl}/${folder}/${fileName}`)}')`
@@ -45,7 +39,7 @@ export const deleteDocumentFromLibrary: ActionFactory<
     return withDigest(
       'deleteDocumentFromLibrary',
       context,
-      requestDigest ?? accessToken,
+      requestDigest,
       optional,
       async (digest) => {
         try {

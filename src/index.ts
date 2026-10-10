@@ -1,7 +1,6 @@
 export * from './createConnection'
 export * from './types'
 export * from './methods'
-export * from './ntlm'
 export { SpRestError, parseSharePointError } from './errors'
 export { isTransientFailure } from './retry'
 export { createConnectionContext } from './context'
