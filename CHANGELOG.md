@@ -1,5 +1,11 @@
 # @b-jones-rfd/sp-rest-connect
 
+## 1.0.8
+
+### Patch Changes
+
+- 93472e2: Fix checkFolderExistsInLibrary returning an error for non-existent folders, fix hanging requests on empty responses, correct Content-Length for non-ASCII payloads, and fix README/CHANGELOG typos
+
 ## 1.0.7
 
 ### Patch Changes
