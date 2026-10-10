@@ -19,7 +19,7 @@ export const checkFolderExistsInLibrary: ActionFactory<
   async ({ folder, ...optional }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
-    }/_api/web/GetFolderByServerRelativeUrl('${folder}')/Exists`
+    }/_api/web/GetFolderByServerRelativeUrl('${serverRelativeUrl}/${folder}')/Exists`
 
     const config = {
       url,

@@ -20,7 +20,7 @@ export const createFolderInLibrary: ActionFactory<
     const url = `${protocol}://${site + serverRelativeUrl}/_api/web/folders`
 
     const payload = JSON.stringify({
-      ServerRelativeUrl: folder,
+      ServerRelativeUrl: `${serverRelativeUrl}/${folder}`,
     })
 
     try {

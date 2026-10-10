@@ -26,7 +26,7 @@ export const addDocumentToLibrary: ActionFactory<
   async ({ accessToken, folder, fileName, payload, ...optional }) => {
     const url = `${protocol}://${
       site + serverRelativeUrl
-    }/_api/web/GetFolderByServerRelativeUrl('${folder}')/Files/add(url='${fileName}',overwrite=true)`
+    }/_api/web/GetFolderByServerRelativeUrl('${serverRelativeUrl}/${folder}')/Files/add(url='${fileName}',overwrite=true)`
 
     try {
       const config = {
