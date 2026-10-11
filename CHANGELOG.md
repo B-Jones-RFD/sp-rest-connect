@@ -1,5 +1,11 @@
 # @b-jones-rfd/sp-rest-connect
 
+## 5.1.1
+
+### Patch Changes
+
+- 5ced9fa: Hygiene: CI now tests Node 20, 22 and 24; README notes the project is personal and not accepting contributions; removed redundant .npmignore.
+
 ## 5.1.0
 
 ### Minor Changes
