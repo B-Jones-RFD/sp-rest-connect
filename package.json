@@ -1,6 +1,6 @@
 {
   "name": "@b-jones-rfd/sp-rest-connect",
-  "version": "5.1.0",
+  "version": "5.1.1",
   "description": "Use SharePoint REST Services to interact with lists and document libraries",
   "private": false,
   "type": "commonjs",
