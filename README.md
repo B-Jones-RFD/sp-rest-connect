@@ -495,15 +495,17 @@ Everything added in 4.x — structured `Failure` codes, `signal`, `agentOptions`
 
 ## Contributing
 
-This is a pet project to save me time at work, but issues and PRs are welcome
-at [github.com/B-Jones-RFD/sp-rest-connect](https://github.com/B-Jones-RFD/sp-rest-connect/issues).
+This is a personal project maintained for my own use. It is published so it
+can be installed, but I am not accepting issues or pull requests at this time.
+Security reports are the exception; see [SECURITY.md](./SECURITY.md).
+
+If you want to build it locally:
 
 ```sh
 pnpm install
 pnpm dev        # vitest in watch mode
 pnpm ci         # lint, test, build, package checks
 pnpm docs       # generate the API reference into docs/
-pnpm changeset  # describe your change for the release notes
 ```
 
 ## Versioning
