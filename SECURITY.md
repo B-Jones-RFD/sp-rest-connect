@@ -5,11 +5,11 @@ so security reports are taken seriously.
 
 ## Supported versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.x     | Yes                |
-| 4.x     | Security fixes only, until 2027-04-01 |
-| < 4.0   | No                 |
+| Version | Supported                             |
+| ------- | ------------------------------------- |
+| 5.x     | Yes                                   |
+| 4.x     | Security fixes only, until 2027-04-10 |
+| < 4.0   | No                                    |
 
 ## Reporting a vulnerability
 

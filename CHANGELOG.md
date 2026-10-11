@@ -4,32 +4,65 @@
 
 ### Major Changes
 
-- 24325b0: Remove the APIs deprecated during 4.x.**Breaking changes**- `accessToken` has been removed from every write action. Use `requestDigest`, or omit it and let the connection manage the digest.- `addListItem.payload` and `updateListItem.patch` no longer accept a JSON string; pass a plain object. The entity type is resolved automatically.- `addListItem` resolves to the created item (`T & { Id: number }`, via a new type parameter) instead of a raw JSON string. Replace `JSON.parse(res.data).Id` with `res.data.Id`. Both the `nometadata` and `verbose` response shapes are accepted; a response without an `Id` is a `PARSE` failure.- The NTLM transport (`get`, `post`, `auth`, `request`, and the message builders) is no longer exported. `SpRestError` and `parseSharePointError` remain public.See "Migrating to 5.0" in the README. Everything added in 4.x — structured`Failure` codes, `signal`, `agentOptions`, `retry`, typed reads, paging, themanaged digest, and streams — is unchanged.
+- 24325b0: Remove the APIs deprecated during 4.x.
+
+  **Breaking changes**
+
+  - `accessToken` has been removed from every write action. Use `requestDigest`, or omit it and let the connection manage the digest.
+  - `addListItem.payload` and `updateListItem.patch` no longer accept a JSON string; pass a plain object. The entity type is resolved automatically.
+  - `addListItem` resolves to the created item (`T & { Id: number }`, via a new type parameter) instead of a raw JSON string. Replace `JSON.parse(res.data).Id` with `res.data.Id`. Both the `nometadata` and `verbose` response shapes are accepted; a response without an `Id` is a `PARSE` failure.
+  - The NTLM transport (`get`, `post`, `auth`, `request`, and the message builders) is no longer exported. `SpRestError` and `parseSharePointError` remain public.
+
+  See "Migrating to 5.0" in the README. Everything added in 4.x — structured `Failure` codes, `signal`, `agentOptions`, `retry`, typed reads, paging, the managed digest, and streams — is unchanged.
 
 ## 4.3.0
 
 ### Minor Changes
 
-- f4d50fe: Managed request digest, object payloads, and streaming uploads/downloads.- **`requestDigest` is now optional on every write.** When omitted, the connection fetches a digest, caches it until a minute before SharePoint says it expires, shares one fetch between concurrent writes, and on a 403 refreshes it and retries the write once. Pass `requestDigest` to bypass the cache. Standalone factories accept a `ConnectionContext` (from the new `createConnectionContext`) as a second argument to share the cache.- **`addListItem.payload` and `updateListItem.patch` accept plain objects.** The list's entity type is looked up once per list and cached; include `__metadata.type` yourself to skip the lookup. The JSON-string form still works but is deprecated and will be removed in 5.0.- **Streams.** `addDocumentToLibrary` accepts a `Readable` as `payload` (plus optional `contentLength`; chunked otherwise). New `getDocumentStreamFromLibrary` returns a `Readable` instead of a `Buffer`. A stream upload is not retried on a stale managed digest.- New exports: `createConnectionContext`, `getDocumentStreamFromLibrary`, and types `ConnectionContext`, `DigestCache`, `EntityTypeCache`, `ListItemPayload`, `GetDocumentStreamFromLibraryOptions`.- Quick start and examples simplified accordingly.
+- f4d50fe: Managed request digest, object payloads, and streaming uploads/downloads.
+
+  - **`requestDigest` is now optional on every write.** When omitted, the connection fetches a digest, caches it until a minute before SharePoint says it expires, shares one fetch between concurrent writes, and on a 403 refreshes it and retries the write once. Pass `requestDigest` to bypass the cache. Standalone factories accept a `ConnectionContext` (from the new `createConnectionContext`) as a second argument to share the cache.
+  - **`addListItem.payload` and `updateListItem.patch` accept plain objects.** The list's entity type is looked up once per list and cached; include `__metadata.type` yourself to skip the lookup. The JSON-string form still works but is deprecated and will be removed in 5.0.
+  - **Streams.** `addDocumentToLibrary` accepts a `Readable` as `payload` (plus optional `contentLength`; chunked otherwise). New `getDocumentStreamFromLibrary` returns a `Readable` instead of a `Buffer`. A stream upload is not retried on a stale managed digest.
+  - New exports: `createConnectionContext`, `getDocumentStreamFromLibrary`, and types `ConnectionContext`, `DigestCache`, `EntityTypeCache`, `ListItemPayload`, `GetDocumentStreamFromLibraryOptions`.
+  - Quick start and examples simplified accordingly.
 
 ## 4.2.0
 
 ### Minor Changes
 
-- fc36ffd: Typed reads, paging helpers, and opt-in retry.- **Type parameters on reads.** `getListContents<T>`, `getFolderContents<T>` and `getListItem<T>` return `T[]` / `T` instead of `unknown`. The default is still `unknown`, so existing code compiles unchanged.- **Paging.** A successful `getListContents` / `getFolderContents` result now carries `nextLink` when SharePoint has more items. New actions follow it: `getNextPage({ nextLink })` (same-origin links only), `getAllListContents` / `getAllFolderContents` (every page in one array; a failed page fails the whole call), and `iterateListContents` / `iterateFolderContents` (async iterators yielding one `PageResult` per page). All accept `maxPages`.- **Retry.** `SiteConnectionOptions.retry` enables exponential-backoff retry (full jitter) of read actions that fail with `NETWORK`, `TIMEOUT`, or HTTP 429/502/503/504. Writes are never retried. `isTransientFailure` is exported as the default predicate.- New exported types: `Page`, `PageResult`, `PagedAction`, `TypedAction`, `PagedIterator`, `RetryOptions`, `GetNextPageOptions`, `PagingOptions`, `GetAllListContentsOptions`, `GetAllFolderContentsOptions`.
+- fc36ffd: Typed reads, paging helpers, and opt-in retry.
+
+  - **Type parameters on reads.** `getListContents<T>`, `getFolderContents<T>` and `getListItem<T>` return `T[]` / `T` instead of `unknown`. The default is still `unknown`, so existing code compiles unchanged.
+  - **Paging.** A successful `getListContents` / `getFolderContents` result now carries `nextLink` when SharePoint has more items. New actions follow it: `getNextPage({ nextLink })` (same-origin links only), `getAllListContents` / `getAllFolderContents` (every page in one array; a failed page fails the whole call), and `iterateListContents` / `iterateFolderContents` (async iterators yielding one `PageResult` per page). All accept `maxPages`.
+  - **Retry.** `SiteConnectionOptions.retry` enables exponential-backoff retry (full jitter) of read actions that fail with `NETWORK`, `TIMEOUT`, or HTTP 429/502/503/504. Writes are never retried. `isTransientFailure` is exported as the default predicate.
+  - New exported types: `Page`, `PageResult`, `PagedAction`, `TypedAction`, `PagedIterator`, `RetryOptions`, `GetNextPageOptions`, `PagingOptions`, `GetAllListContentsOptions`, `GetAllFolderContentsOptions`.
 
 ## 4.1.0
 
 ### Minor Changes
 
-- f0642b4: Structured failures, request cancellation, TLS options and startup validation.- **`Failure` is now structured.** Every failure carries `code` (`'HTTP' | 'AUTH' | 'TIMEOUT' | 'ABORTED' | 'NETWORK' | 'PARSE' | 'UNKNOWN'`), plus `status` and `details` (`{ code, message }` parsed from SharePoint's error body) for HTTP responses. Branch on `code` instead of matching `error` text. `code` is a required property of `Failure`; code that constructs `Failure` objects by hand must add it.- **Error messages** no longer include a redundant `Error:` prefix and now read `Error in <action>: HTTP <status>: <SharePoint message>` for server responses.- **`signal?: AbortSignal`** is accepted by every action; aborting yields a `Failure` with code `ABORTED`. `timeout` is documented as a socket _inactivity_ timeout.- **`agentOptions?: https.AgentOptions`** on `SiteConnectionOptions` passes `ca`, `rejectUnauthorized`, client certificates, `lookup`, etc. to the HTTP agent, so internal CAs no longer need `NODE_TLS_REJECT_UNAUTHORIZED=0`.- **`createSiteConnection` validates its options** and throws a `TypeError` for a protocol or path inside `site`, a `serverRelativeUrl` without a leading slash or with a trailing slash, or an unknown `protocol`.- `SpRestError` and `parseSharePointError` are exported.- Supported Node.js range widened to `>=20`.- Published with npm provenance.
 - f0642b4: Structured failures, request cancellation, TLS options and startup validation.
+
+  - **`Failure` is now structured.** Every failure carries `code` (`'HTTP' | 'AUTH' | 'TIMEOUT' | 'ABORTED' | 'NETWORK' | 'PARSE' | 'UNKNOWN'`), plus `status` and `details` (`{ code, message }` parsed from SharePoint's error body) for HTTP responses. Branch on `code` instead of matching `error` text. `code` is a required property of `Failure`; code that constructs `Failure` objects by hand must add it.
+  - **Error messages** no longer include a redundant `Error:` prefix and now read `Error in <action>: HTTP <status>: <SharePoint message>` for server responses.
+  - **`signal?: AbortSignal`** is accepted by every action; aborting yields a `Failure` with code `ABORTED`. `timeout` is documented as a socket _inactivity_ timeout.
+  - **`agentOptions?: https.AgentOptions`** on `SiteConnectionOptions` passes `ca`, `rejectUnauthorized`, client certificates, `lookup`, etc. to the HTTP agent, so internal CAs no longer need `NODE_TLS_REJECT_UNAUTHORIZED=0`.
+  - **`createSiteConnection` validates its options** and throws a `TypeError` for a protocol or path inside `site`, a `serverRelativeUrl` without a leading slash or with a trailing slash, or an unknown `protocol`.
+  - `SpRestError` and `parseSharePointError` are exported.
+  - Supported Node.js range widened to `>=20`.
+  - Published with npm provenance.
 
 ## 4.0.1
 
 ### Patch Changes
 
-- c0aef10: Fix ESM type resolution and tighten the low-level `auth()` helper.- `package.json` exports now point ESM consumers at `dist/index.d.mts`, so `import { createSiteConnection } from '@b-jones-rfd/sp-rest-connect'` under `moduleResolution: node16`/`nodenext` resolves ESM types instead of CJS ones masquerading as ESM. Adds `"type": "commonjs"` explicitly.- `auth()` / `getAuthToken` now share the main NTLM transport: they honour `timeout`, release their socket, and fail with `Server did not issue an NTLM challenge (HTTP <status>)` when the server answers without a 401 instead of a misleading "missing www-authenticate" error.- `get`, `post` and `auth` are marked `@deprecated`; they are internal transport and will leave the public API in 5.0.- CI now runs `publint` and `@arethetypeswrong/cli` against the packed tarball.
+- c0aef10: Fix ESM type resolution and tighten the low-level `auth()` helper.
+
+  - `package.json` exports now point ESM consumers at `dist/index.d.mts`, so `import { createSiteConnection } from '@b-jones-rfd/sp-rest-connect'` under `moduleResolution: node16`/`nodenext` resolves ESM types instead of CJS ones masquerading as ESM. Adds `"type": "commonjs"` explicitly.
+  - `auth()` / `getAuthToken` now share the main NTLM transport: they honour `timeout`, release their socket, and fail with `Server did not issue an NTLM challenge (HTTP <status>)` when the server answers without a 401 instead of a misleading "missing www-authenticate" error.
+  - `get`, `post` and `auth` are marked `@deprecated`; they are internal transport and will leave the public API in 5.0.
+  - CI now runs `publint` and `@arethetypeswrong/cli` against the packed tarball.
 
 ## 4.0.0
 

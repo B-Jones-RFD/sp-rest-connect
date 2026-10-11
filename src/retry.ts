@@ -36,8 +36,10 @@ function delay(ms: number, signal: AbortSignal | undefined): Promise<void> {
 /**
  * Runs `attempt` and, when `retry` is configured and the result is a
  * retryable {@link Failure}, runs it again with exponential backoff and full
- * jitter. Resolves with the last result; never throws. `ABORTED` failures and
- * an aborted `signal` end retrying immediately.
+ * jitter — or after the server's `Retry-After` when it sent one (a wait
+ * longer than `maxDelayMs` ends retrying instead). Resolves with the last
+ * result; never throws. `ABORTED` failures and an aborted `signal` end
+ * retrying immediately.
  */
 export async function withRetry<T>(
   retry: RetryOptions | undefined,
@@ -56,8 +58,16 @@ export async function withRetry<T>(
     if (result.success) return result
     if (result.code === 'ABORTED' || signal?.aborted) return result
     if (!shouldRetry(result, n)) return result
-    const cap = Math.min(max, base * 2 ** (n - 1))
-    await delay(Math.random() * cap, signal)
+    let wait: number
+    if (result.retryAfterMs !== undefined) {
+      // The server told us how long; obey it, or give up if it's too long.
+      if (result.retryAfterMs > max) return result
+      wait = result.retryAfterMs
+    } else {
+      const cap = Math.min(max, base * 2 ** (n - 1))
+      wait = Math.random() * cap
+    }
+    await delay(wait, signal)
     if (signal?.aborted) return result
     result = await attempt()
   }

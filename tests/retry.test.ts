@@ -125,3 +125,35 @@ describe('withRetry', () => {
     expect(s.calls).toHaveLength(3)
   })
 })
+
+describe('withRetry and Retry-After', () => {
+  it('waits exactly retryAfterMs instead of jittering', async () => {
+    vi.useFakeTimers()
+    const spy = vi.spyOn(Math, 'random').mockReturnValue(0)
+    try {
+      const s = script({ ...f('HTTP', 503), retryAfterMs: 400 }, success(1))
+      const pending = withRetry(
+        { baseDelayMs: 1, maxDelayMs: 1000 },
+        undefined,
+        s.attempt
+      )
+      await vi.advanceTimersByTimeAsync(399)
+      expect(s.calls).toHaveLength(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(s.calls).toHaveLength(2)
+      expect(await pending).toEqual(success(1))
+    } finally {
+      spy.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
+  it('gives up immediately when retryAfterMs exceeds maxDelayMs', async () => {
+    const failure503 = { ...f('HTTP', 503), retryAfterMs: 60_000 }
+    const s = script(failure503, success(1))
+    expect(await withRetry({ maxDelayMs: 5000 }, undefined, s.attempt)).toEqual(
+      failure503
+    )
+    expect(s.calls).toHaveLength(1)
+  })
+})

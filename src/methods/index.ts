@@ -1,6 +1,7 @@
 export { addAttachmentToListItem } from './addAttachmentToListItem'
 export { addDocumentToLibrary } from './addDocumentToLibrary'
 export { addListItem } from './addListItem'
+export { batch } from './batch'
 export { checkFolderExistsInLibrary } from './checkFolderExistsInLibrary'
 export { createFolderInLibrary } from './createFolderInLibrary'
 export { deleteDocumentFromLibrary } from './deleteDocumentFromLibrary'
@@ -10,6 +11,7 @@ export { getDocumentFromLibrary } from './getDocumentFromLibrary'
 export { getDocumentStreamFromLibrary } from './getDocumentStreamFromLibrary'
 export { getFolderContents } from './getFolderContents'
 export { getNextPage } from './getNextPage'
+export { queryListItems } from './queryListItems'
 export {
   getAllListContents,
   getAllFolderContents,

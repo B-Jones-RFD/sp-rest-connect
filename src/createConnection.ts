@@ -83,6 +83,7 @@ export const createSiteConnection: SiteConnectionFactory = (options) => {
     addAttachmentToListItem: methods.addAttachmentToListItem(options, context),
     addDocumentToLibrary: methods.addDocumentToLibrary(options, context),
     addListItem: methods.addListItem(options, context),
+    batch: methods.batch(options, context),
     checkFolderExistsInLibrary: methods.checkFolderExistsInLibrary(options),
     createFolderInLibrary: methods.createFolderInLibrary(options, context),
     deleteDocumentFromLibrary: methods.deleteDocumentFromLibrary(
@@ -98,6 +99,7 @@ export const createSiteConnection: SiteConnectionFactory = (options) => {
     getAllFolderContents: methods.getAllFolderContents(options),
     iterateFolderContents: methods.iterateFolderContents(options),
     getNextPage: methods.getNextPage(options),
+    queryListItems: methods.queryListItems(options, context),
     getListContents: methods.getListContents(options),
     getAllListContents: methods.getAllListContents(options),
     iterateListContents: methods.iterateListContents(options),

@@ -10,14 +10,38 @@ export class SpRestError extends Error {
   readonly status: number
   readonly body: string
   readonly details: SharePointError | undefined
+  /** Milliseconds the server asked clients to wait (`Retry-After`), if sent. */
+  readonly retryAfterMs: number | undefined
 
-  constructor(status: number, body: string) {
+  constructor(
+    status: number,
+    body: string,
+    headers: Record<string, string | string[] | undefined> = {}
+  ) {
     const details = parseSharePointError(body)
     super(details?.message ?? body)
     this.status = status
     this.body = body
     this.details = details
+    this.retryAfterMs = parseRetryAfter(headers['retry-after'])
   }
+}
+
+/**
+ * Parses a `Retry-After` header: either delay-seconds or an HTTP date.
+ * Returns milliseconds (never negative), or `undefined` when absent/invalid.
+ */
+export function parseRetryAfter(
+  value: string | string[] | undefined,
+  now: number = Date.now()
+): number | undefined {
+  const raw = Array.isArray(value) ? value[0] : value
+  if (raw === undefined) return undefined
+  const text = raw.trim()
+  if (/^\d+$/.test(text)) return Number(text) * 1000
+  const date = Date.parse(text)
+  if (Number.isNaN(date)) return undefined
+  return Math.max(0, date - now)
 }
 
 /**
@@ -109,6 +133,8 @@ export function toFailure(action: string, error: unknown): Failure {
   if (error instanceof SpRestError) {
     failure.status = error.status
     if (error.details) failure.details = error.details
+    if (error.retryAfterMs !== undefined)
+      failure.retryAfterMs = error.retryAfterMs
   }
   return failure
 }

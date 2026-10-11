@@ -122,6 +122,7 @@ type Failure = {
   code: FailureCode
   status?: number // HTTP status, for HTTP / AUTH failures
   details?: { code?: string; message?: string } // SharePoint's own error, when it sent one
+  retryAfterMs?: number // from a Retry-After header, when present
 }
 ```
 
@@ -308,9 +309,71 @@ const connection = createSiteConnection({
 ```
 
 Delays grow exponentially with full jitter and stop early if the request's
-`signal` aborts. Pass `retryOn(failure, attempt)` to change what counts as
-retryable; `isTransientFailure` (the default) is exported if you want to
-extend it.
+`signal` aborts. When SharePoint sends a `Retry-After` header (429/503), that
+wait is used instead — or, if it is longer than `maxDelayMs`, retrying stops
+and the failure comes back with `retryAfterMs` set so you can decide. Pass
+`retryOn(failure, attempt)` to change what counts as retryable;
+`isTransientFailure` (the default) is exported if you want to extend it.
+
+### CAML queries and the 5,000-item threshold
+
+`$filter` on an unindexed column fails once a list passes SharePoint's list
+view threshold (5,000 items by default). `queryListItems` sends a CAML query
+to `GetItems` instead, which SQL Server evaluates against indexed columns:
+
+```ts
+const open = await connection.queryListItems<Task>({
+  listName: 'Tasks',
+  viewXml: `<View>
+    <Query><Where><Eq><FieldRef Name='Status'/><Value Type='Text'>Open</Value></Eq></Where></Query>
+    <RowLimit>500</RowLimit>
+  </View>`,
+  params: new URLSearchParams({ $select: 'Id,Title,Status' }),
+})
+```
+
+Page by putting `<RowLimit>` in the view and passing `pagingInfo` built from
+the last item of the previous page — `Paged=TRUE&p_ID=${last.Id}` when the view
+is ordered by ID (the default). `GetItems` is a POST, so the managed request
+digest is used; it is still treated as a read for `retry` purposes.
+
+### Batching requests
+
+`batch` sends several REST calls in one round trip (SharePoint 2016 and
+later; 2013 has no `$batch` endpoint). Reads go as individual parts;
+consecutive writes are grouped into one changeset, which SharePoint applies
+atomically. Each sub-request gets its own response — a failing one does not
+fail the batch, so check `ok`:
+
+```ts
+const res = await connection.batch({
+  requests: [
+    { method: 'GET', path: `_api/web/lists/GetByTitle('Tasks')/items?$top=5` },
+    {
+      method: 'POST',
+      path: `_api/web/lists/GetByTitle('Tasks')/items`,
+      body: { __metadata: { type }, Title: 'A' },
+    },
+    {
+      method: 'MERGE',
+      path: `_api/web/lists/GetByTitle('Tasks')/items(7)`,
+      body: { __metadata: { type }, Title: 'B' },
+    },
+    { method: 'DELETE', path: `_api/web/lists/GetByTitle('Tasks')/items(8)` },
+  ],
+})
+if (res.success) {
+  const [list, created, merged, deleted] = res.data
+  if (created.ok) console.log((created.json as { Id: number }).Id)
+}
+```
+
+`path` is relative to the site (`_api/...`) or an absolute URL on the same
+origin. Defaults per sub-request: `Accept: application/json;odata=nometadata`,
+`Content-Type: application/json;odata=verbose` when there is a body, and
+`If-Match: *` on `MERGE`/`PATCH`/`DELETE`; override any of them with `headers`.
+Bodies that create or merge list items still need `__metadata.type` — the
+batch does not resolve entity types for you (`getListItemType` does).
 
 ### Common options
 
@@ -371,6 +434,7 @@ list's display title.
 | `getAllListContents<T>({ listName, params?, maxPages? })`        | —                   | `T[]` — every page concatenated.                                               |
 | `iterateListContents<T>({ listName, params?, maxPages? })`       | —                   | async iterator of `PageResult<T>`.                                             |
 | `getNextPage<T>({ nextLink })`                                   | —                   | `T[]` — the linked page; same-origin links only.                               |
+| `queryListItems<T>({ listName, viewXml, pagingInfo?, params? })` | —                   | `T[]` — CAML query results via `GetItems`.                                     |
 | `getListItem<T>({ listName, spId })`                             | —                   | `T` — the item object.                                                         |
 | `getListItemType({ listName })`                                  | —                   | `string` — e.g. `'SP.Data.InvoicesListItem'`.                                  |
 | `addListItem<T>({ listName, payload })`                          | `payload`: object   | `T & { Id: number }` — the created item.                                       |
@@ -391,6 +455,12 @@ list's display title.
 | `createFolderInLibrary({ folder })`                                   | parent must exist               | `string` — server-relative URL of the new folder.                                         |
 | `addDocumentToLibrary({ folder, fileName, payload, contentLength? })` | `payload`: `Buffer \| Readable` | `string` — server-relative URL; overwrites existing files.                                |
 | `deleteDocumentFromLibrary({ folder, fileName })`                     | —                               | `string` — the deleted `fileName`.                                                        |
+
+### Batching
+
+| Action                | Required options | `data`                                                                            |
+| --------------------- | ---------------- | --------------------------------------------------------------------------------- |
+| `batch({ requests })` | SharePoint 2016+ | `BatchResponse[]` — `{ status, ok, headers, body, json? }` per request, in order. |
 
 ### Authentication
 

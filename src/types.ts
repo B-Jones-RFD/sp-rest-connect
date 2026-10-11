@@ -49,6 +49,11 @@ export type Failure = {
   status?: number
   /** Parsed SharePoint error body, when the response carried one. */
   details?: SharePointError
+  /**
+   * How long the server asked clients to wait before retrying, from a
+   * `Retry-After` header (429/503). The retry logic honours it.
+   */
+  retryAfterMs?: number
 }
 
 /**
@@ -90,6 +95,11 @@ export type PagedAction<TConfig> = <T = unknown>(
   options: TConfig
 ) => Promise<PageResult<T>>
 
+/** A read action returning an array whose item type the caller chooses (unchecked). */
+export type ItemsAction<TConfig> = <T = unknown>(
+  options: TConfig
+) => Promise<Result<T[]>>
+
 /** A single-item read action whose result type the caller chooses (unchecked). */
 export type TypedAction<TConfig> = <T = unknown>(
   options: TConfig
@@ -107,14 +117,20 @@ export type PagedIterator<TConfig> = <T = unknown>(
 /**
  * Opt-in retry for read actions. Writes are never retried automatically.
  * Delays use exponential backoff with full jitter:
- * `random(0, min(maxDelayMs, baseDelayMs * 2^attempt))`.
+ * `random(0, min(maxDelayMs, baseDelayMs * 2^attempt))`. When the server
+ * sent `Retry-After`, that wait is used instead (no jitter); if it exceeds
+ * `maxDelayMs`, retrying stops and the failure is returned with
+ * `retryAfterMs` set so the caller can decide.
  */
 export type RetryOptions = {
   /** Extra attempts after the first failure. @defaultValue `2` */
   retries?: number
   /** Base delay in milliseconds. @defaultValue `200` */
   baseDelayMs?: number
-  /** Upper bound on a single delay. @defaultValue `5000` */
+  /**
+   * Upper bound on a single delay, including a server-requested
+   * `Retry-After`. @defaultValue `5000`
+   */
   maxDelayMs?: number
   /**
    * Decide whether a failed attempt should be retried. `attempt` is
@@ -342,6 +358,69 @@ export interface PagingOptions {
 export type GetAllListContentsOptions = GetListContentsOptions & PagingOptions
 export type GetAllFolderContentsOptions = GetFolderContentsOptions &
   PagingOptions
+
+/**
+ * Options for a CAML query against a list. The request is a POST to
+ * `GetItems`, so it needs a request digest (managed automatically).
+ */
+export type QueryListItemsOptions = AuthenticatedRequestOptions & {
+  /** List display title, as shown in the SharePoint UI (not the URL segment). */
+  listName: string
+  /**
+   * CAML `<View>` XML, e.g.
+   * `<View><Query><Where><Eq><FieldRef Name='Status'/><Value Type='Text'>Open</Value></Eq></Where></Query><RowLimit>500</RowLimit></View>`.
+   * Use indexed columns in `<Where>` to query lists above the 5,000-item
+   * view threshold.
+   */
+  viewXml: string
+  /**
+   * Position token for the next page, e.g. `'Paged=TRUE&p_ID=500'` using the
+   * `Id` of the last item returned (when the view is ordered by ID). Omit for
+   * the first page.
+   */
+  pagingInfo?: string
+  /** OData query options such as `$select` and `$expand` (`$filter`/`$top` belong in the CAML). */
+  params?: URLSearchParams
+}
+
+/** HTTP method of a {@link BatchRequest}. `MERGE` and `PATCH` are equivalent. */
+export type BatchMethod = 'GET' | 'POST' | 'PATCH' | 'MERGE' | 'DELETE'
+
+/** One sub-request of a `$batch` call. */
+export interface BatchRequest {
+  method: BatchMethod
+  /**
+   * Site-relative REST path starting with `_api/`, e.g.
+   * `_api/web/lists/GetByTitle('Tasks')/items?$top=5`, or an absolute URL on
+   * the connection's own origin.
+   */
+  path: string
+  /**
+   * Extra headers. Defaults: `Accept: application/json;odata=nometadata`,
+   * `Content-Type: application/json;odata=verbose` when there is a body, and
+   * `If-Match: *` for `PATCH`/`MERGE`/`DELETE`.
+   */
+  headers?: Record<string, string>
+  /** JSON body (object) or pre-serialised string. */
+  body?: string | Record<string, unknown>
+}
+
+/** Response to one {@link BatchRequest}, in request order. */
+export interface BatchResponse {
+  status: number
+  /** `true` for a 2xx status. */
+  ok: boolean
+  /** Lower-cased header names. */
+  headers: Record<string, string>
+  body: string
+  /** Parsed body when the part is JSON and parses; otherwise `undefined`. */
+  json?: unknown
+}
+
+export type BatchOptions = AuthenticatedRequestOptions & {
+  /** Sub-requests, executed in order. Consecutive writes share one changeset. */
+  requests: BatchRequest[]
+}
 
 export interface GetListItemOptions extends RequestOptions {
   /** List display title, as shown in the SharePoint UI (not the URL segment). */
@@ -599,6 +678,46 @@ export type SiteConnection = {
    */
   iterateListContents: PagedIterator<GetAllListContentsOptions>
   /**
+   * Runs a CAML query against a list.
+   *
+   * `POST /_api/web/lists/GetByTitle('{listName}')/GetItems?{params}`
+   *
+   * Use this instead of `$filter` when a list exceeds the 5,000-item view
+   * threshold: CAML `<Where>` clauses on indexed columns are evaluated by
+   * SQL Server and are not subject to it. Page with `<RowLimit>` in the view
+   * and `pagingInfo` built from the last item's `Id`.
+   *
+   * @returns `data` is the matching items, typed as `T[]` (unchecked).
+   * @example
+   * const open = await connection.queryListItems<Task>({
+   *   listName: 'Tasks',
+   *   viewXml: `<View><Query><Where><Eq><FieldRef Name='Status'/><Value Type='Text'>Open</Value></Eq></Where></Query><RowLimit>500</RowLimit></View>`,
+   *   params: new URLSearchParams({ $select: 'Id,Title' }),
+   * })
+   */
+  queryListItems: ItemsAction<QueryListItemsOptions>
+  /**
+   * Sends several REST requests in one round trip.
+   *
+   * `POST /_api/$batch`
+   *
+   * Requires SharePoint 2016 or later. Each sub-request gets its own
+   * {@link BatchResponse}; a failing sub-request does not fail the batch, so
+   * check `ok` on each. Consecutive writes are grouped into one changeset
+   * (atomic on the server); reads are sent as individual parts.
+   *
+   * @returns `data` is one response per request, in order.
+   * @example
+   * const res = await connection.batch({
+   *   requests: [
+   *     { method: 'GET', path: `_api/web/lists/GetByTitle('Tasks')/items?$top=5` },
+   *     { method: 'POST', path: `_api/web/lists/GetByTitle('Tasks')/items`, body: { __metadata: { type }, Title: 'A' } },
+   *     { method: 'MERGE', path: `_api/web/lists/GetByTitle('Tasks')/items(7)`, body: { __metadata: { type }, Title: 'B' } },
+   *   ],
+   * })
+   */
+  batch: Action<BatchOptions, BatchResponse[]>
+  /**
    * Fetches the page a previous result's `nextLink` points at.
    *
    * `GET {nextLink}`
@@ -646,6 +765,12 @@ export type AddListItemActionFactory = (
   options: SiteConnectionOptions,
   context?: ConnectionContext
 ) => AddListItemAction
+
+/** Factory for an {@link ItemsAction} that needs the write context (digest). */
+export type ItemsActionFactory<TConfig> = (
+  options: SiteConnectionOptions,
+  context?: ConnectionContext
+) => ItemsAction<TConfig>
 
 /** Factory for a {@link PagedAction}. */
 export type PagedActionFactory<TConfig> = (

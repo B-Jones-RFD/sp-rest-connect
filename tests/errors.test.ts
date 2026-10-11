@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { SpRestError, parseSharePointError, toFailure } from '../src/errors'
+import {
+  SpRestError,
+  parseSharePointError,
+  parseRetryAfter,
+  toFailure,
+} from '../src/errors'
 import { TimeoutError } from '../src/ntlm/request'
 
 describe('parseSharePointError', () => {
@@ -108,5 +113,29 @@ describe('toFailure', () => {
       code: 'UNKNOWN',
       error: 'Error in a: oops',
     })
+  })
+})
+
+describe('parseRetryAfter', () => {
+  it('handles seconds, HTTP dates and garbage', () => {
+    expect(parseRetryAfter('5')).toBe(5000)
+    expect(parseRetryAfter(['12', '99'])).toBe(12_000)
+    const now = Date.parse('Sat, 10 Oct 2026 20:00:00 GMT')
+    expect(parseRetryAfter('Sat, 10 Oct 2026 20:00:30 GMT', now)).toBe(30_000)
+    expect(parseRetryAfter('Sat, 10 Oct 2026 19:00:00 GMT', now)).toBe(0)
+    expect(parseRetryAfter('soon')).toBeUndefined()
+    expect(parseRetryAfter(undefined)).toBeUndefined()
+  })
+
+  it('is carried from SpRestError into the Failure', () => {
+    const err = new SpRestError(429, 'slow', { 'retry-after': '3' })
+    expect(err.retryAfterMs).toBe(3000)
+    expect(toFailure('a', err)).toMatchObject({
+      status: 429,
+      retryAfterMs: 3000,
+    })
+    expect(toFailure('a', new SpRestError(500, 'x'))).not.toHaveProperty(
+      'retryAfterMs'
+    )
   })
 })

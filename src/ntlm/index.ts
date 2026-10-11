@@ -15,7 +15,7 @@ function unwrap(
 ): Promise<unknown> {
   return request(method, options).then((res) => {
     if (res.statusCode >= 200 && res.statusCode <= 299) return res.body
-    throw new SpRestError(res.statusCode, String(res.body))
+    throw new SpRestError(res.statusCode, String(res.body), res.headers)
   })
 }
 

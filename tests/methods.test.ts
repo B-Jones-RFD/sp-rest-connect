@@ -91,6 +91,7 @@ describe('createSiteConnection', () => {
       'addAttachmentToListItem',
       'addDocumentToLibrary',
       'addListItem',
+      'batch',
       'checkFolderExistsInLibrary',
       'createFolderInLibrary',
       'deleteDocumentFromLibrary',
@@ -108,6 +109,7 @@ describe('createSiteConnection', () => {
       'getNextPage',
       'iterateFolderContents',
       'iterateListContents',
+      'queryListItems',
       'updateListItem',
     ])
     for (const fn of Object.values(sp)) expect(typeof fn).toBe('function')
@@ -1414,6 +1416,309 @@ describe('streams', () => {
       code: 'HTTP',
       status: 404,
       error: 'Error in getDocumentStreamFromLibrary: HTTP 404: missing',
+    })
+  })
+})
+
+describe('Retry-After', () => {
+  it('is surfaced on the failure in milliseconds', async () => {
+    const { sp } = await connect((_req, res) => {
+      res.statusCode = 429
+      res.setHeader('Retry-After', '7')
+      res.end('slow down')
+    })
+    const result = await sp.getListItem({ listName: 'Tasks', spId: 1 })
+    expect(result).toMatchObject({
+      success: false,
+      code: 'HTTP',
+      status: 429,
+      retryAfterMs: 7000,
+    })
+  })
+
+  it('is honoured as the retry delay when within maxDelayMs', async () => {
+    let calls = 0
+    const { sp, server } = await connect(
+      (_req, res) => {
+        calls++
+        if (calls === 1) {
+          res.statusCode = 503
+          res.setHeader('Retry-After', '0')
+          res.end('busy')
+          return
+        }
+        res.end(JSON.stringify({ Id: 1 }))
+      },
+      { retry: { baseDelayMs: 1 } }
+    )
+    const result = await sp.getListItem({ listName: 'Tasks', spId: 1 })
+    expect(result).toStrictEqual(success({ Id: 1 }))
+    expect(server.requests.filter((r) => r.ntlmType === 3)).toHaveLength(2)
+  })
+
+  it('stops retrying when Retry-After exceeds maxDelayMs', async () => {
+    const { sp, server } = await connect(
+      (_req, res) => {
+        res.statusCode = 503
+        res.setHeader('Retry-After', '120')
+        res.end('busy')
+      },
+      { retry: { baseDelayMs: 1, maxDelayMs: 5000 } }
+    )
+    const result = await sp.getListItem({ listName: 'Tasks', spId: 1 })
+    expect(result).toMatchObject({
+      success: false,
+      status: 503,
+      retryAfterMs: 120_000,
+    })
+    expect(server.requests.filter((r) => r.ntlmType === 3)).toHaveLength(1)
+  })
+})
+
+describe('queryListItems', () => {
+  it('POSTs a CamlQuery to GetItems with the managed digest', async () => {
+    const { sp, server } = await connect(
+      router(
+        ['contextinfo', contextInfo('d')],
+        ['GetItems', json({ value: [{ Id: 1 }, { Id: 2 }] })]
+      )
+    )
+    const viewXml = `<View><Query/><RowLimit>2</RowLimit></View>`
+    const result = await sp.queryListItems<{ Id: number }>({
+      listName: "Bob's Tasks",
+      viewXml,
+      params: new URLSearchParams({ $select: 'Id' }),
+    })
+    expect(result).toStrictEqual(success([{ Id: 1 }, { Id: 2 }]))
+    const leg = writes(server)[0]
+    expect(leg.method).toBe('POST')
+    expect(decodeURIComponent(leg.url)).toBe(
+      `${SITE_PATH}/_api/web/lists/GetByTitle('Bob''s Tasks')/GetItems?$select=Id`
+    )
+    expect(leg.headers['x-requestdigest']).toBe('d')
+    expect(leg.headers.accept).toBe('application/json;odata=nometadata')
+    expect(JSON.parse(leg.body.toString())).toEqual({
+      query: { __metadata: { type: 'SP.CamlQuery' }, ViewXml: viewXml },
+    })
+  })
+
+  it('sends pagingInfo as ListItemCollectionPosition', async () => {
+    const { sp, server } = await connect(
+      router(
+        ['contextinfo', contextInfo('d')],
+        ['GetItems', json({ value: [] })]
+      )
+    )
+    await sp.queryListItems({
+      listName: 'Tasks',
+      viewXml: '<View/>',
+      pagingInfo: 'Paged=TRUE&p_ID=100',
+    })
+    expect(JSON.parse(writes(server)[0].body.toString()).query).toMatchObject({
+      ListItemCollectionPosition: { PagingInfo: 'Paged=TRUE&p_ID=100' },
+    })
+  })
+
+  it('is retried like a read', async () => {
+    let n = 0
+    const { sp } = await connect(
+      router(
+        ['contextinfo', contextInfo('d')],
+        [
+          'GetItems',
+          (req, res) =>
+            ++n === 1
+              ? json('busy', 503)(req, res)
+              : json({ value: [1] })(req, res),
+        ]
+      ),
+      { retry: { baseDelayMs: 1 } }
+    )
+    expect(
+      await sp.queryListItems({ listName: 'T', viewXml: '<View/>' })
+    ).toStrictEqual(success([1]))
+  })
+})
+
+describe('batch', () => {
+  /** Minimal $batch server: answers each sub-request by URL, as SharePoint would. */
+  const batchServer =
+    (answer: (method: string, url: string, body: string) => [number, string]) =>
+    (req: SeenRequest, res: http.ServerResponse) => {
+      const boundary = /boundary=([^;]+)/.exec(
+        String(req.headers['content-type'])
+      )?.[1]
+      if (!boundary) {
+        res.statusCode = 400
+        res.end('no boundary')
+        return
+      }
+      const text = req.body.toString('utf8')
+      const out: string[] = []
+      const rb = 'batchresponse_test'
+      const subRequests = [
+        ...text.matchAll(
+          /\r\n(GET|POST|PATCH|MERGE|DELETE) (\S+) HTTP\/1\.1\r\n([\s\S]*?)(?=\r\n--)/g
+        ),
+      ]
+      // Writes in a changeset come back nested, like SharePoint does it.
+      let changeset: string[] | undefined
+      for (const m of subRequests) {
+        const [, method, url, rest] = m
+        const bodyStart = rest.indexOf('\r\n\r\n')
+        const body = bodyStart === -1 ? '' : rest.slice(bodyStart + 4).trim()
+        const [status, payload] = answer(method, url, body)
+        const part =
+          `Content-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\n` +
+          `HTTP/1.1 ${status} X\r\nCONTENT-TYPE: application/json;odata=nometadata\r\n\r\n${payload}\r\n`
+        if (method === 'GET') {
+          if (changeset) {
+            out.push(
+              `--${rb}\r\nContent-Type: multipart/mixed; boundary=cs\r\n\r\n${changeset.join('')}--cs--\r\n`
+            )
+            changeset = undefined
+          }
+          out.push(`--${rb}\r\n${part}`)
+        } else {
+          changeset ??= []
+          changeset.push(`--cs\r\n${part}`)
+        }
+      }
+      if (changeset)
+        out.push(
+          `--${rb}\r\nContent-Type: multipart/mixed; boundary=cs\r\n\r\n${changeset.join('')}--cs--\r\n`
+        )
+      res.setHeader('Content-Type', `multipart/mixed; boundary=${rb}`)
+      res.end(out.join('') + `--${rb}--\r\n`)
+    }
+
+  it('sends mixed reads and writes and maps responses back in order', async () => {
+    const seen: string[] = []
+    const { sp, server } = await connect(
+      router(
+        ['contextinfo', contextInfo('d')],
+        [
+          '$batch',
+          batchServer((method, url, body) => {
+            seen.push(`${method} ${url} ${body}`)
+            if (method === 'GET') return [200, '{"value":[1]}']
+            if (method === 'POST') return [201, '{"Id":9}']
+            return [204, '']
+          }),
+        ]
+      )
+    )
+    const result = await sp.batch({
+      requests: [
+        { method: 'GET', path: `_api/web/lists/GetByTitle('T')/items?$top=1` },
+        {
+          method: 'POST',
+          path: `_api/web/lists/GetByTitle('T')/items`,
+          body: { Title: 'A' },
+        },
+        {
+          method: 'MERGE',
+          path: `/_api/web/lists/GetByTitle('T')/items(9)`,
+          body: '{"Title":"B"}',
+        },
+        { method: 'GET', path: `${server.url}${SITE_PATH}/_api/web/lists` },
+      ],
+    })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data.map((r) => [r.status, r.ok])).toEqual([
+      [200, true],
+      [201, true],
+      [204, true],
+      [200, true],
+    ])
+    expect(result.data[1].json).toEqual({ Id: 9 })
+    expect(seen).toEqual([
+      `GET ${server.url}${SITE_PATH}/_api/web/lists/GetByTitle('T')/items?$top=1 `,
+      `POST ${server.url}${SITE_PATH}/_api/web/lists/GetByTitle('T')/items {"Title":"A"}`,
+      `MERGE ${server.url}${SITE_PATH}/_api/web/lists/GetByTitle('T')/items(9) {"Title":"B"}`,
+      `GET ${server.url}${SITE_PATH}/_api/web/lists `,
+    ])
+    const outer = writes(server).find((w) => w.url.includes('$batch'))!
+    expect(outer.headers['x-requestdigest']).toBe('d')
+    expect(String(outer.headers['content-type'])).toMatch(
+      /^multipart\/mixed; boundary=batch_/
+    )
+  })
+
+  it('reports per-request failures via ok/status without failing the batch', async () => {
+    const { sp } = await connect(
+      router(
+        ['contextinfo', contextInfo('d')],
+        [
+          '$batch',
+          batchServer((m, url) =>
+            url.includes('missing')
+              ? [404, '{"odata.error":{"message":{"value":"gone"}}}']
+              : [200, '{}']
+          ),
+        ]
+      )
+    )
+    const result = await sp.batch({
+      requests: [
+        { method: 'GET', path: '_api/web/lists/missing' },
+        { method: 'GET', path: '_api/web' },
+      ],
+    })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data[0]).toMatchObject({ status: 404, ok: false })
+    expect(result.data[1]).toMatchObject({ status: 200, ok: true })
+  })
+
+  it('rejects sub-requests on another origin and returns [] for no requests', async () => {
+    const { sp, server } = await connect(
+      router(['contextinfo', contextInfo('d')])
+    )
+    expect(await sp.batch({ requests: [] })).toStrictEqual(success([]))
+    const result = await sp.batch({
+      requests: [{ method: 'GET', path: 'https://evil.example/_api/web' }],
+    })
+    expect(result).toMatchObject({ success: false, code: 'UNKNOWN' })
+    expect(server.requests).toHaveLength(0)
+  })
+
+  it('fails with HTTP when the batch endpoint itself rejects', async () => {
+    const { sp } = await connect(
+      router(['contextinfo', contextInfo('d')], ['$batch', json('nope', 400)])
+    )
+    const result = await sp.batch({
+      requests: [{ method: 'GET', path: '_api/web' }],
+    })
+    expect(result).toMatchObject({ success: false, code: 'HTTP', status: 400 })
+  })
+
+  it('fails with PARSE when the response count does not match', async () => {
+    const { sp } = await connect(
+      router(
+        ['contextinfo', contextInfo('d')],
+        [
+          '$batch',
+          (_req, res) => {
+            res.setHeader('Content-Type', 'multipart/mixed; boundary=b')
+            res.end(
+              '--b\r\nContent-Type: application/http\r\n\r\nHTTP/1.1 200 OK\r\n\r\n{}\r\n--b--\r\n'
+            )
+          },
+        ]
+      )
+    )
+    const result = await sp.batch({
+      requests: [
+        { method: 'GET', path: '_api/web' },
+        { method: 'GET', path: '_api/web/lists' },
+      ],
+    })
+    expect(result).toMatchObject({
+      success: false,
+      code: 'PARSE',
+      error: 'Error in batch: expected 2 responses, received 1',
     })
   })
 })
